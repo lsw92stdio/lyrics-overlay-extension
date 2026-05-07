@@ -1,0 +1,171 @@
+/* ============================================================
+   Lyrics Overlay - 오버레이 기본 스타일
+   Shadow DOM 내부에 적용됩니다.
+   ============================================================ */
+
+/* 오버레이 컨테이너 */
+.lyrics-overlay-container {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 2147483647;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  padding: 20px 40px;
+  transition: opacity 0.3s ease;
+  font-family: 'Noto Sans KR', 'Noto Sans JP', 'Malgun Gothic', sans-serif;
+}
+
+/* 가사 박스 */
+.lyrics-box {
+  text-align: center;
+  padding: 16px 32px;
+  border-radius: 12px;
+  max-width: 80vw;
+  min-width: 200px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* 빈 상태 (가사 없을 때) */
+.lyrics-box.empty {
+  opacity: 0;
+}
+
+/* ============================================================
+   애니메이션
+   ============================================================ */
+
+/* 페이드 애니메이션 */
+.animation-fade .lyrics-box {
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animation-fade .lyrics-box.entering {
+  animation: lyricsFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animation-fade .lyrics-box.exiting {
+  animation: lyricsFadeOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes lyricsFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lyricsFadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* 슬라이드 애니메이션 */
+.animation-slide .lyrics-box.entering {
+  animation: lyricsSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animation-slide .lyrics-box.exiting {
+  animation: lyricsSlideOut 0.4s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+@keyframes lyricsSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes lyricsSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+  }
+}
+
+/* 애니메이션 없음 */
+.animation-none .lyrics-box {
+  transition: none;
+}
+
+/* ============================================================
+   숨김 상태
+   ============================================================ */
+
+.lyrics-overlay-container.hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ============================================================
+   진행 바 (오버레이 하단)
+   ============================================================ */
+.lyrics-progress-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 2147483646;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.lyrics-progress-bar.visible {
+  opacity: 1;
+}
+
+.lyrics-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.1s linear;
+  width: 0%;
+}
+
+/* ============================================================
+   화면 영역 지정 (Area Selection) 모드
+   ============================================================ */
+.lyrics-area-selection-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: transparent;
+  z-index: 2147483645;
+  cursor: crosshair;
+}
+
+.lyrics-area-highlighter {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(102, 126, 234, 0.15);
+  border: 2px solid var(--accent, #667eea);
+  box-shadow: 0 0 15px rgba(102, 126, 234, 0.4);
+  z-index: 2147483646;
+  transition: all 0.1s ease;
+  border-radius: 4px;
+}
