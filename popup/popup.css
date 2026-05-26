@@ -3,18 +3,18 @@
    ============================================================ */
 
 :root {
-  --bg-primary: #0f0f14;
-  --bg-secondary: #1a1a24;
-  --bg-tertiary: #22223a;
-  --bg-hover: #2a2a44;
-  --text-primary: #eaeaff;
-  --text-secondary: #9999bb;
-  --text-muted: #666688;
-  --accent: #667eea;
-  --accent-hover: #7b93ff;
-  --accent-glow: rgba(102, 126, 234, 0.3);
-  --danger: #e85d75;
-  --border: rgba(255, 255, 255, 0.06);
+  --bg-primary:   #111111;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary:  #222222;
+  --bg-hover:     #2a2a2a;
+  --text-primary:   #e8e8e8;
+  --text-secondary: #999999;
+  --text-muted:     #555555;
+  --accent:       #FFA800;
+  --accent-hover: #ffb930;
+  --accent-glow:  rgba(255, 168, 0, 0.2);
+  --danger:       #e05555;
+  --border:       rgba(255, 255, 255, 0.07);
   --radius: 10px;
   --radius-sm: 6px;
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -52,14 +52,14 @@ body {
   align-items: center;
   gap: 12px;
   padding: 16px 18px 12px;
-  background: linear-gradient(135deg, rgba(102,126,234,0.15), rgba(118,75,162,0.1));
+  background: linear-gradient(135deg, rgba(255,168,0,0.08), rgba(255,168,0,0.03));
   border-bottom: 1px solid var(--border);
 }
 
 .header-icon {
   width: 38px;
   height: 38px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #FFA800;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -119,15 +119,15 @@ body {
   font-family: inherit;
 }
 .btn-remote-toggle.active {
-  background: rgba(102, 126, 234, 0.2);
+  background: rgba(255, 168, 0, 0.15);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent);
 }
 .btn-remote-toggle:hover {
   background: var(--bg-hover);
 }
 .btn-remote-toggle.active:hover {
-  background: rgba(102, 126, 234, 0.3);
+  background: rgba(255, 168, 0, 0.22);
 }
 
 /* ---- 탭 네비게이션 ---- */
@@ -217,7 +217,7 @@ body {
 /* 드래그&드롭 존 */
 .current-track.drop-hover {
   border-color: var(--accent);
-  background: rgba(102, 126, 234, 0.08);
+  background: rgba(255, 168, 0, 0.06);
   box-shadow: 0 0 12px var(--accent-glow) inset;
 }
 
@@ -323,7 +323,7 @@ body {
   align-items: center;
   justify-content: center;
   background: var(--bg-tertiary);
-  color: var(--accent, #667eea);
+  color: var(--accent);
   font-size: 11px;
   font-weight: 700;
   font-family: 'Consolas', monospace;
@@ -376,13 +376,13 @@ body {
 .progress-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: var(--accent);
   border-radius: 3px;
   transition: width 0.15s linear;
 }
 
 .progress-bar:hover .progress-fill {
-  box-shadow: 0 0 6px rgba(102, 126, 234, 0.6);
+  box-shadow: 0 0 6px rgba(255, 168, 0, 0.5);
 }
 
 .time-display {
@@ -433,15 +433,15 @@ body {
 .ctrl-btn-play {
   flex: 1;
   max-width: 160px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: var(--accent);
   border: none;
   font-size: 16px;
   box-shadow: 0 3px 12px var(--accent-glow);
-  color: white;
+  color: #000;
 }
 
 .ctrl-btn-play:hover:not(:disabled) {
-  background: linear-gradient(135deg, #7b93ff, #8b5fbf);
+  background: var(--accent-hover);
   transform: translateY(-1px);
   box-shadow: 0 5px 18px var(--accent-glow);
 }
@@ -618,7 +618,7 @@ kbd {
 
 .timeline-item:hover {
   background: var(--bg-hover);
-  border-color: rgba(102, 126, 234, 0.2);
+  border-color: rgba(255, 168, 0, 0.2);
 }
 
 .timeline-item:hover .timeline-time {
@@ -630,8 +630,8 @@ kbd {
 }
 
 .timeline-item.active {
-  background: rgba(102, 126, 234, 0.12);
-  border-color: rgba(102, 126, 234, 0.3);
+  background: rgba(255, 168, 0, 0.08);
+  border-color: rgba(255, 168, 0, 0.3);
 }
 
 .timeline-time {
@@ -705,7 +705,7 @@ kbd {
 
 .btn-add {
   background: var(--accent);
-  color: white;
+  color: #000;
 }
 
 .btn-add:hover {
@@ -1129,12 +1129,13 @@ kbd {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
+  background: var(--accent);
+  color: #000;
   box-shadow: 0 2px 10px var(--accent-glow);
 }
 
 .btn-primary:hover {
+  background: var(--accent-hover);
   box-shadow: 0 4px 15px var(--accent-glow);
   transform: translateY(-1px);
 }
