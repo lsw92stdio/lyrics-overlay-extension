@@ -3,18 +3,18 @@
    ============================================================ */
 
 :root {
-  --bg-primary:   #111111;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary:  #222222;
-  --bg-hover:     #2a2a2a;
-  --text-primary:   #e8e8e8;
-  --text-secondary: #999999;
-  --text-muted:     #555555;
-  --accent:       #D4956A;
-  --accent-hover: #DFAA82;
-  --accent-glow:  rgba(212, 149, 106, 0.2);
-  --danger:       #e05555;
-  --border:       rgba(255, 255, 255, 0.07);
+  --bg-primary:   #141517;
+  --bg-secondary: #1e2024;
+  --bg-tertiary:  #26282d;
+  --bg-hover:     #2e3035;
+  --text-primary:   #efeff1;
+  --text-secondary: #adadb8;
+  --text-muted:     #57575f;
+  --accent:       #00FFA3;
+  --accent-hover: #33FFB8;
+  --accent-glow:  rgba(0, 255, 163, 0.18);
+  --danger:       #e04040;
+  --border:       rgba(255, 255, 255, 0.06);
   --radius: 10px;
   --radius-sm: 6px;
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -59,7 +59,7 @@ body {
 .header-icon {
   width: 38px;
   height: 38px;
-  background: #D4956A;
+  background: #00FFA3;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -101,7 +101,7 @@ body {
 
 .btn-help:hover {
   background: var(--accent);
-  color: white;
+  color: #000;
   border-color: var(--accent);
   transform: scale(1.05);
 }
@@ -119,7 +119,7 @@ body {
   font-family: inherit;
 }
 .btn-remote-toggle.active {
-  background: rgba(212, 149, 106, 0.15);
+  background: rgba(0, 255, 163, 0.15);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -127,7 +127,7 @@ body {
   background: var(--bg-hover);
 }
 .btn-remote-toggle.active:hover {
-  background: rgba(212, 149, 106, 0.22);
+  background: rgba(0, 255, 163, 0.22);
 }
 
 /* ---- 탭 네비게이션 ---- */
@@ -217,7 +217,7 @@ body {
 /* 드래그&드롭 존 */
 .current-track.drop-hover {
   border-color: var(--accent);
-  background: rgba(212, 149, 106, 0.06);
+  background: rgba(0, 255, 163, 0.06);
   box-shadow: 0 0 12px var(--accent-glow) inset;
 }
 
@@ -382,7 +382,7 @@ body {
 }
 
 .progress-bar:hover .progress-fill {
-  box-shadow: 0 0 6px rgba(212, 149, 106, 0.5);
+  box-shadow: 0 0 6px rgba(0, 255, 163, 0.5);
 }
 
 .time-display {
@@ -548,7 +548,7 @@ body {
 
 .sync-reset-btn:hover {
   background: var(--accent);
-  color: white;
+  color: #000;
   border-color: var(--accent);
 }
 
@@ -618,7 +618,7 @@ kbd {
 
 .timeline-item:hover {
   background: var(--bg-hover);
-  border-color: rgba(212, 149, 106, 0.2);
+  border-color: rgba(0, 255, 163, 0.2);
 }
 
 .timeline-item:hover .timeline-time {
@@ -630,8 +630,8 @@ kbd {
 }
 
 .timeline-item.active {
-  background: rgba(212, 149, 106, 0.08);
-  border-color: rgba(212, 149, 106, 0.3);
+  background: rgba(0, 255, 163, 0.08);
+  border-color: rgba(0, 255, 163, 0.3);
 }
 
 .timeline-time {
