@@ -637,7 +637,7 @@
       .lyrics-box.dragging {
         cursor: grabbing;
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-        border-color: rgba(102, 126, 234, 0.4);
+        border-color: rgba(0, 255, 163, 0.3);
       }
 
       .lyrics-lines {
@@ -704,19 +704,19 @@
 
       /* 원격 컨트롤 (리모컨) */
       .lyrics-remote {
-        --theme-color: #FFA800;
-        --theme-bg-07: rgba(255, 168, 0, 0.07);
-        --theme-bg-12: rgba(255, 168, 0, 0.12);
-        --theme-bg-25: rgba(255, 168, 0, 0.25);
-        --theme-bg-30: rgba(255, 168, 0, 0.3);
-        
+        --theme-color: #00FFA3;
+        --theme-bg-07: rgba(0, 255, 163, 0.07);
+        --theme-bg-12: rgba(0, 255, 163, 0.12);
+        --theme-bg-25: rgba(0, 255, 163, 0.25);
+        --theme-bg-30: rgba(0, 255, 163, 0.3);
+
         position: fixed;
         bottom: 30px;
         right: 30px;
-        background: rgba(15, 15, 20, 0.88);
+        background: rgba(20, 21, 23, 0.92);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 10px;
         display: flex;
         align-items: center;
@@ -811,7 +811,7 @@
         cursor: pointer;
         padding: 0 4px;
       }
-      .remote-sync-val:hover { color: #FFA800; }
+      .remote-sync-val:hover { color: var(--theme-color); }
 
       /* 리모컨 노래 목록 패널 */
       .remote-library-panel, .remote-timeline-panel {
@@ -821,7 +821,7 @@
         margin-bottom: 8px;
         margin-top: 0;
         top: auto;
-        background: rgba(20, 20, 25, 0.95);
+        background: rgba(20, 21, 23, 0.97);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1126,7 +1126,7 @@
       .lyrics-progress-bar.visible { opacity: 1; }
       .lyrics-progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #667eea, #764ba2);
+        background: var(--theme-color, #00FFA3);
         border-radius: 0 2px 2px 0;
         transition: width 0.1s linear;
         width: 0%;
