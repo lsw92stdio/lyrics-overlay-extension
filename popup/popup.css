@@ -173,6 +173,8 @@ body {
 
 .tab-icon {
   font-size: 14px;
+  display: flex;
+  align-items: center;
 }
 
 /* ---- 탭 콘텐츠 ---- */
