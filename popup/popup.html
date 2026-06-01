@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>싱크 가사 오버레이</title>
+  <title>Lyrics Overlay</title>
   <link rel="stylesheet" href="popup.css">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -14,11 +14,11 @@
       <div class="header-icon"><img src="../icons/icon48.png" alt=""></div>
       <div class="header-text">
         <h1>Lyrics Overlay</h1>
-        <p class="subtitle">싱크 가사 오버레이</p>
+        <p class="subtitle" data-i18n="ext_subtitle"></p>
       </div>
       <div class="header-actions" style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
-        <button id="btnToggleRemote" class="btn-remote-toggle active" title="플로팅 리모컨 켜기/끄기">리모컨 ON</button>
-        <button id="btnHelp" class="btn-help" style="margin-left: 0;" title="사용 방법 도움말">?</button>
+        <button id="btnToggleRemote" class="btn-remote-toggle active" data-i18n-title="remote_on_title" data-i18n="remote_on"></button>
+        <button id="btnHelp" class="btn-help" style="margin-left: 0;">?</button>
       </div>
     </header>
 
@@ -26,15 +26,19 @@
     <nav class="tab-nav">
       <button class="tab-btn active" data-tab="player">
         <span class="tab-icon">▶</span>
-        <span>플레이어</span>
+        <span data-i18n="tab_player"></span>
       </button>
       <button class="tab-btn" data-tab="library">
         <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3zm-8.322.12C1.72 3.042 1.95 3 2.19 3h5.396l-.707-.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 1v.12z"/></svg></span>
-        <span>라이브러리</span>
+        <span data-i18n="tab_library"></span>
       </button>
       <button class="tab-btn" data-tab="settings">
         <span class="tab-icon">⚙</span>
-        <span>설정</span>
+        <span data-i18n="tab_settings"></span>
+      </button>
+      <button class="tab-btn" data-tab="design">
+        <span class="tab-icon"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8 5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3m4 3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3M5.5 7a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0m.5 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3"/><path d="M16 8c0 3.15-1.866 2.585-3.567 2.07C11.42 9.763 10.465 9.473 10 10c-.603.683-.475 1.819-.351 2.92C9.826 14.495 9.996 16 8 16a8 8 0 1 1 8-8m-8 7c.611 0 .654-.171.655-.176.078-.146.124-.464.07-1.119-.014-.168-.037-.37-.061-.591-.052-.464-.112-1.005-.118-1.462-.01-.707.083-1.61.704-2.314.369-.417.845-.578 1.272-.618.404-.038.812.026 1.16.104.343.077.702.186 1.025.284 1.064.326 1.758.54 2.223.18C15.221 11.83 15 10.236 15 8A7 7 0 1 0 8 15"/></svg></span>
+        <span data-i18n="tab_design"></span>
       </button>
     </nav>
 
@@ -43,8 +47,8 @@
       <div class="current-track" id="currentTrack">
         <div class="track-placeholder">
           <span class="placeholder-icon">♪</span>
-          <p>SRT 파일을 로드해주세요</p>
-          <p class="drop-hint">파일을 여기에 드래그해도 됩니다</p>
+          <p data-i18n="player_load_hint"></p>
+          <p class="drop-hint" data-i18n="player_drag_hint"></p>
         </div>
         <div class="track-info" style="display:none;">
           <div class="track-name" id="trackName"></div>
@@ -65,10 +69,10 @@
       </div>
 
       <div class="controls">
-        <button class="ctrl-btn ctrl-btn-stop" id="btnStop" title="정지" disabled>
+        <button class="ctrl-btn ctrl-btn-stop" id="btnStop" disabled>
           <span>⏹</span>
         </button>
-        <button class="ctrl-btn ctrl-btn-play" id="btnPlay" title="재생" disabled>
+        <button class="ctrl-btn ctrl-btn-play" id="btnPlay" disabled>
           <span id="playIcon">▶</span>
         </button>
       </div>
@@ -76,24 +80,21 @@
       <input type="file" id="fileInput" accept=".srt" style="display:none;" multiple>
       <input type="file" id="libraryJsonInput" accept=".json" style="display:none;">
       <input type="file" id="settingsJsonInput" accept=".json" style="display:none;">
-
-
+      <input type="file" id="designJsonInput" accept=".json" style="display:none;">
 
       <div class="sync-adjust" id="syncAdjust" style="display:none;">
-        <span class="sync-label">싱크 조정</span>
+        <span class="sync-label" data-i18n="player_sync_label"></span>
         <div class="sync-controls">
           <span class="sync-value" id="syncOffsetValue">0ms</span>
-          <button class="sync-reset-btn" id="btnSyncReset" title="초기화">↺</button>
+          <button class="sync-reset-btn" id="btnSyncReset">↺</button>
         </div>
       </div>
 
-      <div class="shortcut-hint">
-        <kbd>←</kbd> / <kbd>→</kbd> 싱크 ±100ms &nbsp; <kbd>Shift</kbd> ±500ms &nbsp; <kbd>R</kbd> 초기화
-      </div>
+      <div class="shortcut-hint" data-i18n="player_shortcut_hint"></div>
 
       <div class="lyrics-timeline" id="lyricsTimeline" style="display:none;">
         <div class="timeline-header">
-          <span>타임라인</span>
+          <span data-i18n="player_timeline"></span>
           <span class="timeline-count" id="timelineCount"></span>
         </div>
         <div class="timeline-list" id="timelineList"></div>
@@ -104,40 +105,80 @@
     <section id="tab-library" class="tab-content" style="position: relative;">
       <div class="library-drop-overlay" id="libraryDropOverlay">
         <span>📂</span>
-        <p>여기에 SRT 파일을 놓으세요</p>
+        <p data-i18n="lib_drop_hint"></p>
       </div>
       <div class="library-header">
-        <h2>저장된 가사 <span class="library-count" id="libraryCount">0</span></h2>
+        <h2><span data-i18n="lib_title"></span> <span class="library-count" id="libraryCount">0</span></h2>
         <div class="library-header-actions">
-          <button class="btn-export" id="btnReloadSheet" title="구글 스프레드시트에서 가져오기">시트 연동</button>
-          <button class="btn-export" id="btnExportSheetFormat" title="현재 라이브러리 데이터를 구글 시트에 붙여넣기 좋은 양식으로 복사합니다">시트 양식 복사</button>
-          <button class="btn-add" id="btnAddLibrary" title="SRT 파일 추가">+ 추가</button>
+          <button class="btn-export" id="btnReloadSheet" data-i18n="lib_sheet_sync" data-i18n-title="lib_sheet_sync"></button>
+          <button class="btn-export" id="btnExportSheetFormat" data-i18n="lib_sheet_copy" data-i18n-title="lib_sheet_copy"></button>
+          <button class="btn-add" id="btnAddLibrary" data-i18n="lib_add"></button>
         </div>
       </div>
-      
+
       <div class="library-search">
-        <input type="text" id="librarySearchInput" placeholder="순번, 가수, 제목 검색..." autocomplete="off">
+        <input type="text" id="librarySearchInput" data-i18n-placeholder="lib_search_ph" autocomplete="off">
       </div>
-      
+
       <input type="file" id="libraryFileInput" accept=".srt" style="display:none;" multiple>
-      <input type="file" id="libraryJsonInput" accept=".json" style="display:none;">
 
       <div class="library-list" id="libraryList">
         <div class="library-empty">
           <span>📄</span>
-          <p>저장된 가사가 없습니다</p>
-          <p class="sub">SRT 파일을 추가해주세요</p>
+          <p data-i18n="lib_empty"></p>
+          <p class="sub" data-i18n="lib_empty_hint"></p>
         </div>
       </div>
     </section>
 
-    <!-- 설정 탭 -->
-    <section id="tab-settings" class="tab-content">
+    <!-- 디자인 탭 -->
+    <section id="tab-design" class="tab-content">
       <div class="settings-scroll">
+        <!-- 묶음: 가사 디자인 & 정렬 (추후 사이트별 설정 대상) -->
+        <div id="designSettingsSection">
+          
+          <!-- 디자인 적용 대상 선택기 -->
+          <div class="settings-group" style="background: var(--bg-tertiary); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+            <div class="setting-row" style="margin-bottom: 8px;">
+              <label data-i18n="lbl_design_target" style="font-weight: 600; color: var(--accent);">Target</label>
+              <div class="setting-control">
+                <select id="designTargetSelect" class="select-input" style="width: 100%; border-color: var(--accent);">
+                  <option value="global" data-i18n="opt_global_default">Global Default</option>
+                  <option value="site" id="optCurrentSite">Current Site</option>
+                </select>
+              </div>
+            </div>
+            <div class="setting-row" id="siteOverrideToggleRow" style="display: none;">
+              <label data-i18n="lbl_use_site_design">Use custom design for this site</label>
+              <div class="setting-control">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="useSiteOverride">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div id="designControlsWrapper">
+            <div class="settings-group">
+            <h3 data-i18n="sec_layout">Layout / Alignment</h3>
+            <div class="setting-row">
+              <label data-i18n="lbl_text_align"></label>
+              <div class="setting-control">
+                <select id="settingsTextAlign" class="select-input">
+                  <option value="left" data-i18n="align_left"></option>
+                  <option value="center" selected data-i18n="align_center"></option>
+                  <option value="right" data-i18n="align_right"></option>
+                </select>
+              </div>
+            </div>
+          </div>
+          </div>
+
         <div class="settings-group">
-          <h3>원문</h3>
+          <h3 data-i18n="sec_original"></h3>
           <div class="setting-row">
-            <label>표시</label>
+            <label data-i18n="lbl_show"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="showOriginal" checked>
@@ -146,14 +187,14 @@
             </div>
           </div>
           <div class="setting-row">
-            <label>폰트 크기</label>
+            <label data-i18n="lbl_font_size"></label>
             <div class="setting-control">
               <input type="range" id="origFontSize" min="14" max="60" value="20" class="range-input">
               <span class="range-value" id="origFontSizeValue">20px</span>
             </div>
           </div>
           <div class="setting-row">
-            <label>색상</label>
+            <label data-i18n="lbl_color"></label>
             <div class="setting-control">
               <input type="color" id="origColor" value="#FFA800" class="color-input">
               <span class="color-value" id="origColorValue">#FFA800</span>
@@ -162,9 +203,9 @@
         </div>
 
         <div class="settings-group">
-          <h3>발음</h3>
+          <h3 data-i18n="sec_pronunciation"></h3>
           <div class="setting-row">
-            <label>표시</label>
+            <label data-i18n="lbl_show"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="showPronunciation" checked>
@@ -173,14 +214,14 @@
             </div>
           </div>
           <div class="setting-row">
-            <label>폰트 크기</label>
+            <label data-i18n="lbl_font_size"></label>
             <div class="setting-control">
               <input type="range" id="pronFontSize" min="14" max="60" value="18" class="range-input">
               <span class="range-value" id="pronFontSizeValue">18px</span>
             </div>
           </div>
           <div class="setting-row">
-            <label>색상</label>
+            <label data-i18n="lbl_color"></label>
             <div class="setting-control">
               <input type="color" id="pronColor" value="#F5E6CC" class="color-input">
               <span class="color-value" id="pronColorValue">#F5E6CC</span>
@@ -189,16 +230,16 @@
         </div>
 
         <div class="settings-group">
-          <h3>한국어</h3>
+          <h3 data-i18n="sec_korean"></h3>
           <div class="setting-row">
-            <label>폰트 크기</label>
+            <label data-i18n="lbl_font_size"></label>
             <div class="setting-control">
               <input type="range" id="mainFontSize" min="14" max="60" value="28" class="range-input">
               <span class="range-value" id="mainFontSizeValue">28px</span>
             </div>
           </div>
           <div class="setting-row">
-            <label>색상</label>
+            <label data-i18n="lbl_color"></label>
             <div class="setting-control">
               <input type="color" id="mainColor" value="#FFFFFF" class="color-input">
               <span class="color-value" id="mainColorValue">#FFFFFF</span>
@@ -207,51 +248,53 @@
         </div>
 
         <div class="settings-group">
-          <h3>배경</h3>
+          <h3 data-i18n="sec_background"></h3>
           <div class="setting-row">
-            <label>배경 색상</label>
+            <label data-i18n="lbl_bg_color"></label>
             <div class="setting-control">
               <input type="color" id="bgColor" value="#000000" class="color-input">
               <span class="color-value" id="bgColorValue">#000000</span>
             </div>
           </div>
           <div class="setting-row">
-            <label>투명도</label>
+            <label data-i18n="lbl_opacity"></label>
             <div class="setting-control">
               <input type="range" id="bgOpacity" min="0" max="100" value="45" class="range-input">
               <span class="range-value" id="bgOpacityValue">45%</span>
             </div>
           </div>
           <div class="setting-row">
-            <label>블러 (흐림)</label>
+            <label data-i18n="lbl_blur"></label>
             <div class="setting-control">
               <input type="range" id="bgBlur" min="0" max="40" value="4" class="range-input">
               <span class="range-value" id="bgBlurValue">4px</span>
             </div>
           </div>
-        </div>
+          </div> <!-- End of designControlsWrapper -->
+        </div> <!-- End of designSettingsSection -->
 
         <div class="settings-group">
-          <h3>표시</h3>
+          <h3 data-i18n="sec_display"></h3>
           <div class="setting-row">
-            <label>위치 지정</label>
+            <label data-i18n="lbl_position"></label>
             <div class="setting-control">
-              <span class="range-value" style="margin-right: 4px;">자유 드래그 또는</span>
-              <button class="btn-secondary" id="btnSelectArea" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;">영역 선택 🎯</button>
+              <span class="range-value" style="margin-right: 4px;" data-i18n="lbl_free_drag"></span>
+              <button class="btn-secondary" id="btnSelectArea" style="padding: 6px 10px; font-size: 12px; white-space: nowrap;" data-i18n="lbl_area_btn"></button>
             </div>
           </div>
+
           <div class="setting-row">
-            <label>애니메이션</label>
+            <label data-i18n="lbl_animation"></label>
             <div class="setting-control">
               <select id="settingsAnimation" class="select-input">
-                <option value="fade" selected>페이드</option>
-                <option value="slide">슬라이드</option>
-                <option value="none">없음</option>
+                <option value="fade" selected data-i18n="anim_fade"></option>
+                <option value="slide" data-i18n="anim_slide"></option>
+                <option value="none" data-i18n="anim_none"></option>
               </select>
             </div>
           </div>
           <div class="setting-row">
-            <label>텍스트 외곽선</label>
+            <label data-i18n="lbl_text_shadow"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="textShadow" checked>
@@ -259,13 +302,39 @@
               </label>
             </div>
           </div>
+
+          <div class="setting-row">
+            <label data-i18n="lbl_pin_color"></label>
+            <div class="setting-control">
+              <input type="color" id="pinColor" value="#FFFFFF" class="color-input">
+              <span class="color-value" id="pinColorValue">#FFFFFF</span>
+            </div>
+          </div>
         </div>
 
         <div class="settings-group">
-          <h3>편의 기능</h3>
-
+          <h3 data-i18n="sec_site_manager"></h3>
           <div class="setting-row">
-            <label>곡 종료 알림 표시</label>
+            <label data-i18n="lbl_site_manager_desc"></label>
+            <button class="btn-secondary" id="btnOpenOptions" style="font-size: 12px; padding: 6px 10px;" data-i18n="btn_open_manager"></button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="settings-actions-fixed">
+        <button class="btn-secondary" id="btnResetDesign" data-i18n="btn_reset"></button>
+        <button class="btn-primary" id="btnSaveDesign" data-i18n="btn_save"></button>
+      </div>
+    </section>
+
+    <!-- 설정 탭 -->
+    <section id="tab-settings" class="tab-content">
+      <div class="settings-scroll">
+        <div class="settings-group">
+          <h3 data-i18n="sec_features"></h3>
+          <div class="setting-row">
+            <label data-i18n="lbl_end_notice"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="showEndNotice" checked>
@@ -274,7 +343,7 @@
             </div>
           </div>
           <div class="setting-row">
-            <label>진행 바 표시</label>
+            <label data-i18n="lbl_progress_bar"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="showProgressBar" checked>
@@ -282,12 +351,21 @@
               </label>
             </div>
           </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_auto_detect"></label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="autoDetectSong" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="settings-group">
-          <h3>플로팅 리모컨 버튼</h3>
+          <h3 data-i18n="sec_remote_btns"></h3>
           <div class="setting-row">
-            <label>노래 목록 (🎵)</label>
+            <label data-i18n="lbl_btn_library"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnLibrary" checked>
@@ -296,7 +374,7 @@
             </div>
           </div>
           <div class="setting-row">
-            <label>타임라인 (📜)</label>
+            <label data-i18n="lbl_btn_timeline"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnTimeline" checked>
@@ -305,7 +383,7 @@
             </div>
           </div>
           <div class="setting-row">
-            <label>영역 선택 (🎯)</label>
+            <label data-i18n="lbl_btn_area"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnArea" checked>
@@ -314,7 +392,7 @@
             </div>
           </div>
           <div class="setting-row">
-            <label>재생/정지 (▶ ■)</label>
+            <label data-i18n="lbl_btn_play_stop"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnPlayStop" checked>
@@ -323,7 +401,7 @@
             </div>
           </div>
           <div class="setting-row">
-            <label>싱크 조절 (− / +)</label>
+            <label data-i18n="lbl_btn_sync"></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnSync" checked>
@@ -334,45 +412,51 @@
         </div>
 
         <div class="settings-group">
-          <h3>라이브러리</h3>
+          <h3 data-i18n="sec_library"></h3>
           <div class="setting-row">
-            <label>가수/제목 표시 방식</label>
+            <label data-i18n="lbl_display_lang"></label>
             <div class="setting-control">
               <select id="libraryDisplayLang" class="select-input">
-                <option value="both" selected>원문 + 한국어</option>
-                <option value="orig">원문 우선</option>
-                <option value="ko">한국어 우선</option>
+                <option value="both" selected data-i18n="display_both"></option>
+                <option value="orig" data-i18n="display_orig"></option>
+                <option value="ko" data-i18n="display_ko"></option>
               </select>
             </div>
           </div>
         </div>
 
         <div class="settings-group">
-          <h3>구글 시트 연동</h3>
+          <h3 data-i18n="sec_sheet"></h3>
           <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-            <label style="width: 100%;">가사 시트 URL (편집 링크 또는 공개 링크)</label>
+            <label style="width: 100%;" data-i18n="lbl_sheet_url"></label>
             <div class="setting-control" style="width: 100%;">
-              <input type="text" id="googleSheetUrl" class="text-input" placeholder="https://docs.google.com/spreadsheets/d/.../edit" style="width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 11px;">
+              <input type="text" id="googleSheetUrl" class="text-input" style="width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 11px;">
             </div>
           </div>
-
         </div>
 
         <div class="settings-group">
-          <h3>백업 및 복원 (JSON)</h3>
+          <h3 data-i18n="sec_backup"></h3>
           <div class="setting-row">
-            <label>라이브러리 데이터</label>
+            <label data-i18n="lbl_library_data"></label>
             <div class="setting-control" style="gap: 8px;">
-              <button class="btn-secondary" id="btnImportLibrary" style="font-size: 11px; padding: 4px 8px;">가져오기</button>
-              <button class="btn-secondary" id="btnExportLibrary" style="font-size: 11px; padding: 4px 8px;">내보내기</button>
-              <button class="btn-secondary" id="btnClearLibrary" style="font-size: 11px; padding: 4px 8px; color: #ff6b6b; border-color: #ff6b6b55; white-space: nowrap;" title="저장된 가사를 모두 삭제합니다">일괄 삭제</button>
+              <button class="btn-secondary" id="btnImportLibrary" style="font-size: 11px; padding: 4px 8px;" data-i18n="btn_import"></button>
+              <button class="btn-secondary" id="btnExportLibrary" style="font-size: 11px; padding: 4px 8px;" data-i18n="btn_export"></button>
+              <button class="btn-secondary" id="btnClearLibrary" style="font-size: 11px; padding: 4px 8px; color: #ff6b6b; border-color: #ff6b6b55; white-space: nowrap;" data-i18n="btn_clear_all"></button>
             </div>
           </div>
           <div class="setting-row">
-            <label>환경 설정 데이터</label>
+            <label data-i18n="lbl_settings_data"></label>
             <div class="setting-control" style="gap: 8px;">
-              <button class="btn-secondary" id="btnImportSettings" style="font-size: 11px; padding: 4px 8px;">가져오기</button>
-              <button class="btn-secondary" id="btnExportSettings" style="font-size: 11px; padding: 4px 8px;">내보내기</button>
+              <button class="btn-secondary" id="btnImportSettings" style="font-size: 11px; padding: 4px 8px;" data-i18n="btn_import"></button>
+              <button class="btn-secondary" id="btnExportSettings" style="font-size: 11px; padding: 4px 8px;" data-i18n="btn_export"></button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_design_data"></label>
+            <div class="setting-control" style="gap: 8px;">
+              <button class="btn-secondary" id="btnImportDesign" style="font-size: 11px; padding: 4px 8px;" data-i18n="btn_import"></button>
+              <button class="btn-secondary" id="btnExportDesign" style="font-size: 11px; padding: 4px 8px;" data-i18n="btn_export"></button>
             </div>
           </div>
         </div>
@@ -381,15 +465,15 @@
           <h3>About</h3>
           <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
             <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">하늘딛음</div>
-            <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">해당 확장 프로그램은 Gemini, Claude를 사용해서 제작 되었습니다.</div>
+            <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;" data-i18n="about_desc"></div>
           </div>
         </div>
 
       </div>
 
       <div class="settings-actions-fixed">
-        <button class="btn-secondary" id="btnResetSettings">기본값 복원</button>
-        <button class="btn-primary" id="btnSaveSettings">저장</button>
+        <button class="btn-secondary" id="btnResetSettings" data-i18n="btn_reset"></button>
+        <button class="btn-primary" id="btnSaveSettings" data-i18n="btn_save"></button>
       </div>
     </section>
   </div>
@@ -398,12 +482,13 @@
     <div class="custom-modal-content">
       <p id="customConfirmMessage"></p>
       <div class="custom-modal-actions">
-        <button id="customConfirmCancel" class="btn-secondary">취소</button>
-        <button id="customConfirmOk" class="btn-primary">확인</button>
+        <button id="customConfirmCancel" class="btn-secondary" data-i18n="btn_cancel"></button>
+        <button id="customConfirmOk" class="btn-primary" data-i18n="btn_confirm"></button>
       </div>
     </div>
   </div>
   <script src="../lib/sheet-parser.js"></script>
+  <script src="../lib/i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

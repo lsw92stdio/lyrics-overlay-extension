@@ -31,7 +31,7 @@ html {
 }
 
 body {
-  width: 380px;
+  width: 420px;
   height: 600px;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -671,6 +671,8 @@ kbd {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 0;
   margin-bottom: 12px;
 }
 
@@ -680,6 +682,8 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .library-count {
@@ -698,6 +702,8 @@ kbd {
 .library-header-actions {
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .btn-add, .btn-export {
@@ -915,6 +921,7 @@ kbd {
 }
 
 /* ---- 설정 탭 ---- */
+#tab-design,
 #tab-settings {
   padding-bottom: 0 !important;
   overflow: hidden !important;
@@ -1154,6 +1161,7 @@ kbd {
   background: var(--bg-secondary);
   color: var(--text-secondary);
   border: 1px solid var(--border);
+  white-space: nowrap;
 }
 
 .btn-secondary:hover {

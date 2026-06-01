@@ -38,8 +38,36 @@
     // 새로 추가된 상태
     lastElapsed: 0,
     hasJumpedBeforeStart: false,
-    endNoticeShown: false
+    endNoticeShown: false,
+    // 외부 클럭(예: SoundCloud 오디오 currentTime)으로 가사를 구동할 때 사용.
+    // null이면 기존처럼 내부 타이머(performance.now)로 동작.
+    externalClock: null,
+    siteState: {} // 사이트별 상태 저장
   };
+
+  // SoundCloud 등 미디어 사이트의 "현재 재생 위치(ms)" 제공자.
+  // initSoundCloudSync에서 주입되며, 해당 사이트가 아니면 null로 유지된다.
+  let scGetPositionMs = null;
+
+  // 현재 호스트명 및 사이트별 상태 처리
+  const currentHostname = window.location.hostname;
+  
+  chrome.storage.local.get(['siteStates'], (data) => {
+    if (data.siteStates && data.siteStates[currentHostname]) {
+      state.siteState = data.siteStates[currentHostname];
+    }
+  });
+
+  function updateSiteState(updates) {
+    chrome.storage.local.get(['siteStates'], (data) => {
+      const states = data.siteStates || {};
+      states[currentHostname] = { ...(states[currentHostname] || {}), ...updates };
+      chrome.storage.local.set({ siteStates: states });
+      
+      // Update local state immediately for sync
+      state.siteState = states[currentHostname];
+    });
+  }
 
   // ============================================================
   // 오버레이 DOM 생성 (Shadow DOM)
@@ -49,7 +77,7 @@
 
     const host = document.createElement('div');
     host.id = 'lyrics-overlay-host';
-    host.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;pointer-events:none;';
+    host.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:0;z-index:2147483647;pointer-events:none;';
     document.documentElement.appendChild(host);
 
     const shadow = host.attachShadow({ mode: 'closed' });
@@ -74,6 +102,16 @@
     linesContainer.className = 'lyrics-lines';
 
     box.appendChild(linesContainer);
+
+    // 호버 시 나타나는 고정(핀) 토글 버튼
+    const pinBtn = document.createElement('div');
+    pinBtn.className = 'lyrics-pin-btn';
+    pinBtn.title = chrome.i18n.getMessage('overlay_pin_title') || 'Pin / Unpin';
+    pinBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 9V4h1a1 1 0 0 0 0-2H7a1 1 0 0 0 0 2h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"/></svg>';
+    pinBtn.addEventListener('mousedown', (e) => e.stopPropagation()); // 드래그 시작 방지
+    pinBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePinFromOverlay(); });
+    box.appendChild(pinBtn);
+
     container.appendChild(box);
     shadow.appendChild(container);
 
@@ -90,6 +128,7 @@
       container,
       box,
       linesContainer,
+      pinBtn,
       progressBar,
       progressFill,
       style,
@@ -108,30 +147,32 @@
       remote.classList.add('theme-youtube');
     } else if (hostname.includes('twitch.tv')) {
       remote.classList.add('theme-twitch');
+    } else if (hostname.includes('soundcloud.com')) {
+      remote.classList.add('theme-soundcloud');
     }
     remote.innerHTML = `
-      <div class="remote-drag-handle" title="드래그해서 이동">⋮⋮</div>
+      <div class="remote-drag-handle" title="${chrome.i18n.getMessage('remote_drag_title')}"><svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/></svg></div>
       <div class="remote-controls">
-        <button class="remote-btn remote-btn-library" id="remote-library-btn" title="노래 목록">🎵</button>
-        <button class="remote-btn remote-btn-timeline" id="remote-timeline-btn" title="타임라인">📜</button>
-        <button class="remote-btn remote-btn-area" id="remote-area-btn" title="영역 선택">🎯</button>
-        <button class="remote-btn remote-btn-play" id="remote-toggle-play" title="재생/일시정지">▶</button>
-        <button class="remote-btn remote-btn-stop" id="remote-stop" title="가사 닫기">■</button>
+        <button class="remote-btn remote-btn-library" id="remote-library-btn" title="${chrome.i18n.getMessage('remote_title_song_list')}">🎵</button>
+        <button class="remote-btn remote-btn-timeline" id="remote-timeline-btn" title="${chrome.i18n.getMessage('remote_title_timeline')}">📜</button>
+        <button class="remote-btn remote-btn-area" id="remote-area-btn" title="${chrome.i18n.getMessage('remote_title_area')}">🎯</button>
+        <button class="remote-btn remote-btn-play" id="remote-toggle-play" title="${chrome.i18n.getMessage('remote_title_play_pause')}">▶</button>
+        <button class="remote-btn remote-btn-stop" id="remote-stop" title="${chrome.i18n.getMessage('remote_title_stop')}">■</button>
         <div class="remote-divider"></div>
-        <button class="remote-btn remote-btn-sync-minus" id="remote-sync-minus" title="싱크 -0.1s">−</button>
-        <div class="remote-sync-val" id="remote-sync-val" title="클릭시 싱크 초기화">0.0s</div>
-        <button class="remote-btn remote-btn-sync-plus" id="remote-sync-plus" title="싱크 +0.1s">+</button>
+        <button class="remote-btn remote-btn-sync-minus" id="remote-sync-minus" title="${chrome.i18n.getMessage('remote_title_sync_minus')}">−</button>
+        <div class="remote-sync-val" id="remote-sync-val" title="${chrome.i18n.getMessage('remote_title_sync_reset')}">0.0s</div>
+        <button class="remote-btn remote-btn-sync-plus" id="remote-sync-plus" title="${chrome.i18n.getMessage('remote_title_sync_plus')}">+</button>
       </div>
-      <button class="remote-btn remote-btn-minimize" id="remote-minimize-btn" title="최소화/최대화" style="width: 20px;">›</button>
+      <button class="remote-btn remote-btn-minimize" id="remote-minimize-btn" title="${chrome.i18n.getMessage('remote_title_minimize')}" style="width: 20px;">›</button>
       <div class="remote-library-panel hidden" id="remote-library-panel">
-        <div class="remote-library-header">가사 목록 <button class="remote-library-close" id="remote-library-close">✕</button></div>
+        <div class="remote-library-header">${chrome.i18n.getMessage('remote_lib_title')} <button class="remote-library-close" id="remote-library-close">✕</button></div>
         <div class="remote-library-search">
-          <input type="text" id="remote-library-search-input" placeholder="곡명, 가수 검색..." autocomplete="off">
+          <input type="text" id="remote-library-search-input" placeholder="${chrome.i18n.getMessage('remote_search_ph')}" autocomplete="off">
         </div>
         <div class="remote-library-list" id="remote-library-list"></div>
       </div>
       <div class="remote-timeline-panel hidden" id="remote-timeline-panel">
-        <div class="remote-timeline-header">타임라인 <button class="remote-timeline-close" id="remote-timeline-close">✕</button></div>
+        <div class="remote-timeline-header">${chrome.i18n.getMessage('remote_timeline_title')} <button class="remote-timeline-close" id="remote-timeline-close">✕</button></div>
         <div class="remote-timeline-list" id="remote-timeline-list"></div>
       </div>
     `;
@@ -252,7 +293,7 @@
       remote.classList.toggle('minimized');
       const isMin = remote.classList.contains('minimized');
       btnMinimize.textContent = isMin ? '‹' : '›';
-      chrome.storage.local.set({ remoteMinimized: isMin });
+      updateSiteState({ remoteMinimized: isMin });
       // 패널 열려있으면 닫기
       if (isMin) {
         libPanel.classList.add('hidden');
@@ -264,7 +305,11 @@
     setupRemoteDrag(remote);
     
     // 리모컨 저장된 위치 복원
-    chrome.storage.local.get(['remotePosition', 'remoteMinimized'], (data) => {
+    chrome.storage.local.get(['remotePosition', 'remoteMinimized'], (globalData) => {
+      const data = (state.siteState.remotePosition || state.siteState.remoteMinimized !== undefined)
+        ? state.siteState
+        : globalData;
+        
       if (data.remotePosition) {
         let right, bottom;
         // 비율 기반 저장값이 있으면 현재 창 크기로 변환
@@ -322,7 +367,7 @@
     const url = data.settings && data.settings.googleSheetUrl;
     if (list.length > 0 || !url) return;
 
-    listEl.innerHTML = '<div class="remote-sync-status"><span class="remote-sync-spinner"></span>구글 시트에서 불러오는 중...</div>';
+    listEl.innerHTML = `<div class="remote-sync-status"><span class="remote-sync-spinner"></span>${chrome.i18n.getMessage('remote_loading')}</div>`;
 
     try {
       const response = await fetch(SheetParser.toExportUrl(url));
@@ -349,7 +394,14 @@
       }));
       await new Promise(r => chrome.storage.local.set({ savedLyrics: withIds }, r));
 
-      listEl.innerHTML = `<div class="remote-sync-status remote-sync-done">✓ ${newLyrics.length}곡 연동 완료</div>`;
+      const normalCount = newLyrics.filter(l => !l.autoOnly).length;
+      const autoOnlyCount = newLyrics.length - normalCount;
+      const unit = chrome.i18n.getMessage('remote_songs_unit') || '곡';
+      const autoLabel = chrome.i18n.getMessage('toast_auto_only_label') || '자동';
+      const countLabel = autoOnlyCount > 0
+        ? `${normalCount}${unit} (+${autoOnlyCount} ${autoLabel})`
+        : `${normalCount}${unit}`;
+      listEl.innerHTML = `<div class="remote-sync-status remote-sync-done">✓ ${chrome.i18n.getMessage('remote_sync_done', [countLabel])}</div>`;
       await new Promise(r => setTimeout(r, 1500));
     } catch (e) {
       listEl.innerHTML = '';
@@ -360,15 +412,15 @@
     const chips = [];
     const lower = q.toLowerCase();
     if (!item.parsed) {
-      if (item.name.toLowerCase().includes(lower)) chips.push({ type: '파일명', value: item.name });
+      if (item.name.toLowerCase().includes(lower)) chips.push({ type: chrome.i18n.getMessage('chip_filename'), value: item.name });
       return chips;
     }
-    if (item.parsed.index && item.parsed.index.includes(lower)) chips.push({ type: '번호', value: item.parsed.index });
-    if (item.parsed.artist && item.parsed.artist.toLowerCase().includes(lower)) chips.push({ type: '가수', value: item.parsed.artist });
-    if (item.parsed.title && item.parsed.title.toLowerCase().includes(lower)) chips.push({ type: '제목', value: item.parsed.title });
+    if (item.parsed.index && item.parsed.index.includes(lower)) chips.push({ type: chrome.i18n.getMessage('chip_number'), value: item.parsed.index });
+    if (item.parsed.artist && item.parsed.artist.toLowerCase().includes(lower)) chips.push({ type: chrome.i18n.getMessage('chip_artist'), value: item.parsed.artist });
+    if (item.parsed.title && item.parsed.title.toLowerCase().includes(lower)) chips.push({ type: chrome.i18n.getMessage('chip_title'), value: item.parsed.title });
     if (item.parsed.keywords) {
       item.parsed.keywords.filter(k => k.toLowerCase().includes(lower))
-        .forEach(k => chips.push({ type: '키워드', value: k }));
+        .forEach(k => chips.push({ type: chrome.i18n.getMessage('chip_keyword'), value: k }));
     }
     return chips;
   }
@@ -386,7 +438,10 @@
   function loadRemoteLibrary(listEl, searchTerm = '') {
     chrome.storage.local.get(['savedLyrics'], (data) => {
       let list = data.savedLyrics || [];
-      
+
+      // autoOnly 가사는 수동 목록에서 제외 (자동 감지로만 사용)
+      list = list.filter(item => SheetParser.isManualVisible(item));
+
       if (searchTerm) {
         const lowerTerm = searchTerm.toLowerCase();
         list = list.filter(item => {
@@ -403,7 +458,7 @@
       }
 
       if (list.length === 0) {
-        listEl.innerHTML = '<div style="padding:12px;text-align:center;color:rgba(255,255,255,0.5);font-size:11px;">검색 결과가 없습니다.</div>';
+        listEl.innerHTML = `<div style="padding:12px;text-align:center;color:rgba(255,255,255,0.5);font-size:11px;">${chrome.i18n.getMessage('remote_no_results')}</div>`;
         return;
       }
       
@@ -502,8 +557,8 @@
     state.syncOffset = 0;
     state.trackName = item.name;
     
-    // 팝업 복원용 트랙 정보 갱신
-    chrome.storage.local.set({ currentTrack: {
+    // 팝업 복원용 트랙 정보 갱신 (사이트별로 저장)
+    updateSiteState({ currentTrack: {
       name: state.trackName,
       count: parsed.length,
       duration: SRTParser.getTotalDuration(parsed),
@@ -519,7 +574,7 @@
 
   function renderRemoteTimeline(listEl) {
     if (!state.lyrics || state.lyrics.length === 0) {
-      listEl.innerHTML = '<div style="padding:12px;text-align:center;color:rgba(255,255,255,0.5);font-size:11px;">현재 로드된 가사가 없습니다.</div>';
+      listEl.innerHTML = `<div style="padding:12px;text-align:center;color:rgba(255,255,255,0.5);font-size:11px;">${chrome.i18n.getMessage('remote_no_lyrics')}</div>`;
       return;
     }
     
@@ -608,21 +663,22 @@
 
       .lyrics-overlay-container {
         position: fixed;
+        left: 0;
+        right: 0;
         z-index: 2147483647;
-        display: flex;
-        justify-content: center;
-        align-items: center;
         pointer-events: none;
         transition: opacity 0.3s ease;
         font-family: 'Noto Sans KR', 'M PLUS 1 Code', 'Malgun Gothic', sans-serif;
       }
 
       .lyrics-box {
+        position: absolute;
         text-align: center;
         padding: 16px 32px;
         border-radius: 12px;
         max-width: 80vw;
         min-width: 200px;
+        width: max-content;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -632,6 +688,7 @@
         cursor: grab;
         user-select: none;
         -webkit-user-select: none;
+        bottom: 0;
       }
 
       .lyrics-box.dragging {
@@ -639,6 +696,32 @@
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
         border-color: rgba(0, 255, 163, 0.3);
       }
+
+      /* 고정(핀) 토글 버튼 - 박스 모서리 안쪽에 심플하게, 호버 시 표시 */
+      .lyrics-pin-btn {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        width: 15px;
+        height: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff; /* 설정(pinColor)으로 덮어씀 */
+        cursor: pointer;
+        pointer-events: auto;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+      .lyrics-pin-btn svg {
+        width: 14px;
+        height: 14px;
+        display: block;
+      }
+      .lyrics-box:hover .lyrics-pin-btn { opacity: 0.4; }
+      .lyrics-pin-btn:hover { opacity: 0.9; }
+      /* 고정 중일 때는 항상 보이게 */
+      .lyrics-pin-btn.active { opacity: 0.85; }
 
       .lyrics-lines {
         display: flex;
@@ -750,6 +833,13 @@
         --theme-bg-12: rgba(145, 71, 255, 0.12);
         --theme-bg-25: rgba(145, 71, 255, 0.25);
         --theme-bg-30: rgba(145, 71, 255, 0.3);
+      }
+      .lyrics-remote.theme-soundcloud {
+        --theme-color: #FF5500;
+        --theme-bg-07: rgba(255, 85, 0, 0.07);
+        --theme-bg-12: rgba(255, 85, 0, 0.12);
+        --theme-bg-25: rgba(255, 85, 0, 0.25);
+        --theme-bg-30: rgba(255, 85, 0, 0.3);
       }
       .lyrics-remote.hidden {
         opacity: 0;
@@ -1145,8 +1235,15 @@
   // ============================================================
   // 설정 적용
   // ============================================================
-  function applySettings(settings) {
-    state.settings = settings;
+  function applySettings(baseSettings) {
+    if (!baseSettings) return;
+    state.settings = baseSettings;
+
+    // 현재 사이트의 덮어쓰기 설정이 있으면 병합
+    const settings = {
+      ...baseSettings,
+      ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
+    };
 
     // 리모컨 활성화 여부 처리 (사이트별)
     const hostname = window.location.hostname;
@@ -1184,6 +1281,16 @@
     if (settings.fontFamily) {
       container.style.fontFamily = settings.fontFamily;
     }
+
+    // 정렬 (왼쪽/가운데/오른쪽) — 박스 내부 텍스트 + 여러 줄 정렬 + 박스 자체 앵커
+    const align = settings.textAlign || 'center';
+    box.style.textAlign = align;
+    if (state.overlay.linesContainer) {
+      state.overlay.linesContainer.style.alignItems =
+        align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
+    }
+    // 박스 앵커 위치 갱신 (정렬에 따라 box의 left/right/transform 재설정)
+    restoreSavedPosition();
 
     // 텍스트 외곽선
     if (settings.textShadow === false) {
@@ -1251,6 +1358,12 @@
 
     // 현재 표시 중인 줄들에 스타일 실시간 적용
     applyLineStyles();
+
+    // 핀 버튼 색상/활성 상태 동기화
+    if (state.overlay && state.overlay.pinBtn) {
+      state.overlay.pinBtn.style.color = settings.pinColor || '#FFFFFF';
+      state.overlay.pinBtn.classList.toggle('active', !!state.siteState.isPinned);
+    }
   }
 
   /**
@@ -1258,19 +1371,22 @@
    */
   function applyLineStyles() {
     if (!state.overlay || !state.settings) return;
-    const s = state.settings;
+    const settings = {
+      ...state.settings,
+      ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
+    };
     const lines = state.overlay.linesContainer.children;
 
     for (const line of lines) {
       if (line.classList.contains('lyrics-line-orig')) {
-        line.style.fontSize = `${s.origFontSize || 20}px`;
-        line.style.color = s.origColor || '#FFA800';
+        line.style.fontSize = `${settings.origFontSize || 20}px`;
+        line.style.color = settings.origColor || '#FFA800';
       } else if (line.classList.contains('lyrics-line-pron')) {
-        line.style.fontSize = `${s.pronFontSize || 18}px`;
-        line.style.color = s.pronColor || '#F5E6CC';
+        line.style.fontSize = `${settings.pronFontSize || 18}px`;
+        line.style.color = settings.pronColor || '#F5E6CC';
       } else if (line.classList.contains('lyrics-line-main') || line.classList.contains('lyrics-line-solo')) {
-        line.style.fontSize = `${s.mainFontSize || 28}px`;
-        line.style.color = s.mainColor || '#FFFFFF';
+        line.style.fontSize = `${settings.mainFontSize || 28}px`;
+        line.style.color = settings.mainColor || '#FFFFFF';
       }
     }
   }
@@ -1313,7 +1429,10 @@
     // 줄 렌더링
     linesContainer.innerHTML = '';
     const lineCount = entry.lines.length;
-    const s = state.settings || {};
+    const s = {
+      ...state.settings,
+      ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
+    };
     const showPron = s.showPronunciation !== false;
 
     // 줄 분류:
@@ -1377,7 +1496,11 @@
     function tick() {
       if (!state.isPlaying || state.isPaused) return;
 
-      const elapsed = performance.now() - state.startTimestamp + state.syncOffset;
+      // 외부 클럭(SoundCloud 등)이 연결돼 있으면 실제 재생 위치를 따라감.
+      // 그렇지 않으면 기존처럼 내부 타이머로 진행.
+      const elapsed = state.externalClock
+        ? Math.max(0, state.externalClock.getTimeMs()) + state.syncOffset
+        : performance.now() - state.startTimestamp + state.syncOffset;
       const totalDuration = SRTParser.getTotalDuration(state.lyrics);
       
       // 1. 종료 알림 로직
@@ -1397,8 +1520,10 @@
           });
         }
         
-        // 종료 알림이 떠있는 시간(약 4초)을 벌어주기 위해 여유 시간 증가
-        if (elapsed > totalDuration + 5000) {
+        // 종료 알림이 떠있는 시간(약 4초)을 벌어주기 위해 여유 시간 증가.
+        // 단, 외부 클럭(SoundCloud 등) 모드에서는 오디오가 재생을 제어하므로
+        // 가사 길이만으로 종료시키지 않는다 → 반복 재생/뒤로 탐색 시 가사가 되살아남.
+        if (!state.externalClock && elapsed > totalDuration + 5000) {
           stopPlayback();
           return;
         }
@@ -1437,6 +1562,13 @@
       return;
     }
 
+    // SoundCloud 등에서 수동으로 재생한 가사도 실제 오디오 위치에 맞춰 싱크.
+    // (자동 매칭 경로는 이미 externalClock을 설정해두므로 중복 연결되지 않음)
+    // 오디오 엘리먼트를 미리 캡처하지 않고 매번 실시간 조회 → 늦게 생성/재생성돼도 추종.
+    if (!state.externalClock && scGetPositionMs) {
+      state.externalClock = { getTimeMs: () => scGetPositionMs() || 0 };
+    }
+
     state.isPlaying = true;
     state.isPaused = false;
     state.startTimestamp = performance.now();
@@ -1470,6 +1602,7 @@
     state.lastElapsed = 0;
     state.endNoticeShown = false;
     state.currentEntry = null;
+    state.externalClock = null;
     if (state.animFrameId) {
       cancelAnimationFrame(state.animFrameId);
       state.animFrameId = null;
@@ -1517,11 +1650,11 @@
       e.preventDefault();
       state.isDragging = true;
 
-      const rect = container.getBoundingClientRect();
+      const boxRect = box.getBoundingClientRect();
       // 클릭 지점과 박스 중심의 오프셋
-      const centerX = rect.left + rect.width / 2;
+      const centerX = boxRect.left + boxRect.width / 2;
       state.dragOffsetX = e.clientX - centerX;
-      state.dragOffsetY = e.clientY - rect.top;
+      state.dragOffsetY = e.clientY - boxRect.top;
 
       box.classList.add('dragging');
     });
@@ -1535,17 +1668,25 @@
       let newY = e.clientY - state.dragOffsetY;
 
       // 화면 경계 제한 (중심 기준)
-      const rect = container.getBoundingClientRect();
-      const halfW = rect.width / 2;
+      const boxRect = box.getBoundingClientRect();
+      const halfW = boxRect.width / 2;
       centerX = Math.max(halfW, Math.min(centerX, window.innerWidth - halfW));
-      newY = Math.max(0, Math.min(newY, window.innerHeight - rect.height));
+      newY = Math.max(0, Math.min(newY, window.innerHeight - boxRect.height));
 
-      // bottom 기준으로 위치 설정 (savePosition과 일관성 유지)
-      const bottomY = window.innerHeight - newY - rect.height;
-      container.style.left = centerX + 'px';
-      container.style.top = 'auto';
-      container.style.bottom = bottomY + 'px';
-      container.style.transform = 'translateX(-50%)';
+      if (isOverlayPinned()) {
+        // 고정 모드: 문서 좌표(top 기준, 스크롤 포함)로 배치 → 페이지와 함께 스크롤
+        container.style.position = 'absolute';
+        container.style.top = (newY + window.scrollY) + 'px';
+        container.style.bottom = 'auto';
+        applyContainerAlign(container, centerX + window.scrollX);
+      } else {
+        // 기본 모드: 뷰포트 하단 기준 (savePosition과 일관성 유지)
+        const bottomY = window.innerHeight - newY - boxRect.height;
+        container.style.position = 'fixed';
+        container.style.top = 'auto';
+        container.style.bottom = bottomY + 'px';
+        applyContainerAlign(container, centerX);
+      }
     });
 
     document.addEventListener('mouseup', () => {
@@ -1562,45 +1703,178 @@
 
   function savePosition() {
     if (!state.overlay) return;
-    const rect = state.overlay.container.getBoundingClientRect();
+    // container가 전체 너비이므로 box의 실제 위치를 기준으로 저장
+    const boxRect = state.overlay.box.getBoundingClientRect();
     // 중심점 비율 및 하단 기준 비율로 저장 (위로 자라나게 하기 위함)
     const posData = {
-      xCenterPercent: (rect.left + rect.width / 2) / window.innerWidth,
-      yPercent: rect.top / window.innerHeight, // 하위 호환성 유지
-      bottomPercent: (window.innerHeight - rect.bottom) / window.innerHeight
+      xCenterPercent: (boxRect.left + boxRect.width / 2) / window.innerWidth,
+      yPercent: boxRect.top / window.innerHeight, // 하위 호환성 유지
+      bottomPercent: (window.innerHeight - boxRect.bottom) / window.innerHeight
     };
-    chrome.storage.local.set({ overlayPosition: posData });
+    if (isOverlayPinned()) {
+      // 고정 모드: 문서 좌표만 갱신 (뷰포트 비율은 스크롤 상태에 따라 왜곡되므로 건드리지 않음)
+      updateSiteState({
+        overlayPinPosition: {
+          docTop: boxRect.top + window.scrollY,
+          docCenterX: boxRect.left + boxRect.width / 2 + window.scrollX
+        }
+      });
+    } else {
+      updateSiteState({ overlayPosition: posData });
+    }
   }
 
   function restoreSavedPosition() {
-    chrome.storage.local.get(['overlayPosition'], (data) => {
-      if (data.overlayPosition && state.overlay) {
-        const pos = data.overlayPosition;
-        // 새 형식 (중심점) 또는 구 형식 (좌측) 호환
+    chrome.storage.local.get(['overlayPosition', 'overlayPinPosition'], (globalData) => {
+      if (!state.overlay) return;
+      const c = state.overlay.container;
+
+      const posData = state.siteState.overlayPosition || globalData.overlayPosition;
+      const pinPosData = state.siteState.overlayPinPosition || globalData.overlayPinPosition;
+
+      // 호스트 position 토글 (고정: absolute → 문서 기준, 기본: fixed → 뷰포트 기준)
+      const pinned = isOverlayPinned();
+      if (state.overlay.host) {
+        state.overlay.host.style.position = pinned ? 'absolute' : 'fixed';
+        state.overlay.host.style.width = '100%'; // container가 항상 전체 너비 사용
+      }
+
+      if (pinned) {
+        // 고정 모드: 문서 좌표(top 기준)로 배치 → 페이지와 함께 스크롤
+        c.style.position = 'absolute';
+        let docTop, docCenterX;
+        if (pinPosData) {
+          docTop = pinPosData.docTop;
+          docCenterX = pinPosData.docCenterX;
+        } else if (posData) {
+          // 고정 좌표가 없으면 저장된 뷰포트 비율 + 현재 스크롤로 환산
+          const pos = posData;
+          const centerX = (pos.xCenterPercent ? pos.xCenterPercent : pos.xPercent) * window.innerWidth;
+          const boxH = state.overlay.box.getBoundingClientRect().height;
+          const topVp = pos.bottomPercent !== undefined
+            ? (window.innerHeight - pos.bottomPercent * window.innerHeight) - boxH
+            : pos.yPercent * window.innerHeight;
+          docTop = topVp + window.scrollY;
+          docCenterX = centerX + window.scrollX;
+        } else {
+          docCenterX = window.innerWidth / 2 + window.scrollX;
+          docTop = window.innerHeight - 100 + window.scrollY;
+        }
+        c.style.top = docTop + 'px';
+        c.style.bottom = 'auto';
+        applyContainerAlign(c, docCenterX);
+        return;
+      }
+
+      // 기본(고정 OFF) 모드: 뷰포트 기준 fixed
+      c.style.position = 'fixed';
+      if (posData) {
+        const pos = posData;
         const centerX = pos.xCenterPercent
           ? pos.xCenterPercent * window.innerWidth
           : (pos.xPercent * window.innerWidth);
-          
+
         if (pos.bottomPercent !== undefined) {
           const bottomY = pos.bottomPercent * window.innerHeight;
-          state.overlay.container.style.left = centerX + 'px';
-          state.overlay.container.style.top = 'auto';
-          state.overlay.container.style.bottom = bottomY + 'px';
+          c.style.top = 'auto';
+          c.style.bottom = bottomY + 'px';
         } else {
           const y = pos.yPercent * window.innerHeight;
-          state.overlay.container.style.left = centerX + 'px';
-          state.overlay.container.style.top = y + 'px';
-          state.overlay.container.style.bottom = 'auto';
+          c.style.top = y + 'px';
+          c.style.bottom = 'auto';
         }
-        state.overlay.container.style.transform = 'translateX(-50%)';
-      } else if (state.overlay) {
+        applyContainerAlign(c, centerX);
+      } else {
         // 기본 위치: 하단 중앙
-        state.overlay.container.style.left = '50%';
-        state.overlay.container.style.top = '';
-        state.overlay.container.style.bottom = '60px';
-        state.overlay.container.style.transform = 'translateX(-50%)';
+        c.style.top = '';
+        c.style.bottom = '60px';
+        applyContainerAlign(c, window.innerWidth / 2);
       }
     });
+  }
+
+  function isOverlayPinned() {
+    return !!state.siteState.isPinned;
+  }
+
+  // 정렬 설정에 따라 box의 left/right/transform을 설정.
+  // centerX: 항상 box의 **시각적 중심**이 위치할 X좌표.
+  //   모든 호출자(드래그, 위치 복원, 영역 선택 등)가 중심 기준으로 전달.
+  // container는 항상 left:0; right:0 (전체 뷰포트 너비) 유지.
+  // box를 position:absolute로 container 내부에서 배치.
+  // 세 정렬 모두 centerX에서 box 너비의 절반을 빼거나 더하여 edge를 직접 계산.
+  function applyContainerAlign(c, centerX) {
+    if (!state.overlay) return;
+    const box = state.overlay.box;
+    const settings = {
+      ...(state.settings || {}),
+      ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
+    };
+    const align = settings.textAlign || 'center';
+
+    // container는 항상 전체 너비
+    c.style.left = '0';
+    c.style.right = '0';
+
+    // box의 현재 너비를 가져와서 중심 → 좌/우 끝 변환
+    const boxW = box.getBoundingClientRect().width || 0;
+    const halfW = boxW / 2;
+
+    if (align === 'right') {
+      // 우측 정렬: box의 오른쪽 끝 = centerX + halfW
+      const rightEdge = centerX + halfW;
+      box.style.left = 'auto';
+      box.style.right = Math.max(0, window.innerWidth - rightEdge) + 'px';
+      box.style.transform = '';
+    } else if (align === 'left') {
+      // 좌측 정렬: box의 왼쪽 끝 = centerX - halfW
+      const leftEdge = centerX - halfW;
+      box.style.left = Math.max(0, leftEdge) + 'px';
+      box.style.right = 'auto';
+      box.style.transform = '';
+    } else {
+      // 중앙 정렬: box의 왼쪽 끝 = centerX - halfW (left 정렬과 동일한 계산)
+      // 텍스트는 box 내부에서 text-align: center로 이미 중앙 정렬됨
+      const leftEdge = centerX - halfW;
+      box.style.left = Math.max(0, leftEdge) + 'px';
+      box.style.right = 'auto';
+      box.style.transform = '';
+    }
+  }
+
+  // 가사창의 핀 버튼으로 고정 on/off 토글. 현재 보이는 위치를 그대로 유지한다.
+  function togglePinFromOverlay() {
+    const willPin = !state.siteState.isPinned;
+    const updates = { isPinned: willPin };
+
+    if (state.overlay) {
+      const boxRect = state.overlay.box.getBoundingClientRect();
+      if (willPin) {
+        // 켤 때: 현재 화면 위치를 문서 좌표로 저장 → 그 자리에 고정
+        updates.overlayPinPosition = {
+          docTop: boxRect.top + window.scrollY,
+          docCenterX: boxRect.left + boxRect.width / 2 + window.scrollX
+        };
+      } else {
+        // 끌 때: 현재 화면 위치를 뷰포트 비율로 저장 → 그 자리에서 뷰포트 고정으로 복귀
+        updates.overlayPosition = {
+          xCenterPercent: (boxRect.left + boxRect.width / 2) / window.innerWidth,
+          yPercent: boxRect.top / window.innerHeight,
+          bottomPercent: (window.innerHeight - boxRect.bottom) / window.innerHeight
+        };
+      }
+      
+      // Update UI immediately for responsiveness
+      state.overlay.pinBtn.classList.toggle('active', willPin);
+    }
+    
+    updateSiteState(updates);
+
+    // Update local state immediately so restoreSavedPosition uses the correct
+    // pin position captured above (updateSiteState is async; the callback fires
+    // too late for the restoreSavedPosition call below).
+    Object.assign(state.siteState, updates);
+    restoreSavedPosition();
   }
 
   // ============================================================
@@ -1659,7 +1933,7 @@
         const rect = remote.getBoundingClientRect();
         const right = window.innerWidth - rect.right;
         const bottom = window.innerHeight - rect.bottom;
-        chrome.storage.local.set({
+        updateSiteState({
           remotePosition: {
             right: right + 'px',
             bottom: bottom + 'px',
@@ -1676,7 +1950,7 @@
   // ============================================================
   function startAreaSelection() {
     if (!state.overlay || !state.overlay.container) {
-      return { error: '자막을 먼저 로드해주세요.' };
+      return { error: chrome.i18n.getMessage('content_load_first') };
     }
 
     const doc = document;
@@ -1732,22 +2006,37 @@
         
         // 요소의 X 정중앙, Y 하단 92% 지점 (조금 더 아래로 내림)
         const centerX = rect.left + (rect.width / 2);
-        const bottomY = window.innerHeight - (rect.top + rect.height * 0.92);
+        const bottomEdgeVp = rect.top + rect.height * 0.92; // 가사 박스 하단이 위치할 뷰포트 Y
+        const c = state.overlay.container;
 
-        state.overlay.container.style.left = `${centerX}px`;
-        state.overlay.container.style.top = 'auto';
-        state.overlay.container.style.bottom = `${bottomY}px`;
+        if (isOverlayPinned()) {
+          // 고정 모드: 문서 좌표(top 기준)로 배치해야 함
+          const boxH = state.overlay.box.getBoundingClientRect().height;
+          c.style.position = 'absolute';
+          c.style.top = `${bottomEdgeVp - boxH + window.scrollY}px`;
+          c.style.bottom = 'auto';
+          applyContainerAlign(c, centerX + window.scrollX);
+        } else {
+          // 기본 모드: 뷰포트 하단 기준
+          c.style.position = 'fixed';
+          c.style.top = 'auto';
+          c.style.bottom = `${window.innerHeight - bottomEdgeVp}px`;
+          applyContainerAlign(c, centerX);
+        }
         
-        // 새로 설정된 위치를 기준으로 중앙 비율, 상단 비율 다시 계산하여 저장
-        // bottom이 설정되면 브라우저가 top을 자동 계산하므로 getBoundingClientRect로 실제 top을 가져와 저장
+        // 새로 설정된 위치를 기준으로 저장
         setTimeout(() => {
           savePosition();
         }, 50);
         
-        // 시각적 피드백
-        state.overlay.container.style.transform = 'translateX(-50%) scale(1.05)';
+        // 시각적 피드백 (box에 scale 적용)
+        const box = state.overlay.box;
+        const origTransform = box.style.transform || '';
+        box.style.transform = origTransform + ' scale(1.05)';
         setTimeout(() => {
-          if (state.overlay) state.overlay.container.style.transform = 'translateX(-50%) scale(1)';
+          if (state.overlay) {
+            box.style.transform = origTransform;
+          }
         }, 150);
       }
       cleanup();
@@ -1795,8 +2084,8 @@
         // overlay가 이미 있을 때는 applySettings만 재실행 (패널 참조 유지)
         if (state.settings) applySettings(state.settings);
         else loadSettings();
-        // 트랙 정보 저장 (팝업 복원용)
-        chrome.storage.local.set({ currentTrack: {
+        // 트랙 정보 저장 (팝업 복원용, 사이트별)
+        updateSiteState({ currentTrack: {
           name: state.trackName,
           count: parsed.length,
           duration: SRTParser.getTotalDuration(parsed),
@@ -1812,7 +2101,7 @@
 
       case 'PLAY':
         if (state.lyrics.length === 0) {
-          sendResponse({ success: false, error: '가사가 로드되지 않았습니다.' });
+          sendResponse({ success: false, error: chrome.i18n.getMessage('content_no_lyrics') });
         } else {
           play();
           sendResponse({ success: true });
@@ -1850,9 +2139,15 @@
         break;
 
       case 'UPDATE_STYLE':
-        if (message.settings) {
-          applySettings(message.settings);
-        }
+        chrome.storage.local.get(['settings', 'siteStates'], (data) => {
+          if (data.settings) {
+            state.settings = data.settings;
+          }
+          if (data.siteStates && data.siteStates[currentHostname]) {
+            state.siteState = data.siteStates[currentHostname];
+          }
+          if (state.settings) applySettings(state.settings);
+        });
         sendResponse({ success: true });
         break;
 
@@ -1868,7 +2163,18 @@
         sendResponse({ success: true, syncOffset: state.syncOffset });
         break;
 
-      case 'GET_STATUS':
+      case 'GET_STATUS': {
+        let currentTime = 0;
+        if (state.isPlaying) {
+          if (state.isPaused) {
+            currentTime = state.pausedAt + state.syncOffset;
+          } else if (state.externalClock) {
+            // 외부 클럭(SoundCloud 등) 연동 시 실제 오디오 위치 사용
+            currentTime = Math.max(0, state.externalClock.getTimeMs()) + state.syncOffset;
+          } else {
+            currentTime = performance.now() - state.startTimestamp + state.syncOffset;
+          }
+        }
         sendResponse({
           isPlaying: state.isPlaying,
           isPaused: state.isPaused,
@@ -1876,12 +2182,11 @@
           lyricCount: state.lyrics.length,
           trackName: state.trackName,
           syncOffset: state.syncOffset,
-          currentTime: state.isPlaying 
-            ? (state.isPaused ? state.pausedAt + state.syncOffset : performance.now() - state.startTimestamp + state.syncOffset)
-            : 0,
+          currentTime,
           totalDuration: SRTParser.getTotalDuration(state.lyrics)
         });
         break;
+      }
 
       default:
         break;
@@ -1889,20 +2194,248 @@
     return true;
   });
 
-  // 설정 변경 감지
+  // 설정 및 사이트 상태 변경 감지
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.settings && changes.settings.newValue) {
       const newSettings = changes.settings.newValue;
-      const hostname = window.location.hostname;
-      const shouldShowRemote = newSettings.remoteEnabledSites && newSettings.remoteEnabledSites[hostname] === true;
+      const shouldShowRemote = newSettings.remoteEnabledSites && newSettings.remoteEnabledSites[currentHostname] === true;
       // 이미 overlay가 있거나 리모컨을 켜야 하는 경우만 처리
       if (state.overlay || shouldShowRemote) {
         applySettings(newSettings);
       }
     }
+    
+    if (changes.siteStates && changes.siteStates.newValue) {
+      const newStates = changes.siteStates.newValue;
+      if (newStates[currentHostname]) {
+        const myNewState = newStates[currentHostname];
+        const oldPinned = !!state.siteState.isPinned;
+        const newPinned = !!myNewState.isPinned;
+        
+        state.siteState = myNewState;
+        
+        // 외부 탭 등에서 핀 상태가 변경된 경우 즉시 UI 업데이트
+        if (oldPinned !== newPinned && state.overlay) {
+          state.overlay.pinBtn.classList.toggle('active', newPinned);
+          restoreSavedPosition();
+        }
+      }
+    }
   });
+
+  // ============================================================
+  // SoundCloud 자동 싱크
+  //   현재 재생 중인 곡(제목/가수)을 감지해 라이브러리 가사와 자동 매칭하고,
+  //   오디오의 실제 재생 위치(currentTime)에 맞춰 가사를 동기화한다.
+  //   ※ soundcloud.com 에서만 동작하며, 다른 사이트에는 영향을 주지 않는다.
+  //   ※ DOM 선택자(제목/가수)는 SoundCloud UI 변경 시 튜닝이 필요할 수 있음.
+  // ============================================================
+  function initSoundCloudSync() {
+    if (!window.location.hostname.includes('soundcloud.com')) return;
+
+    const SC_DEBUG = false; // 진단용 로그 (필요 시 true로)
+    const log = (...a) => { if (SC_DEBUG) console.log('[LyricsOverlay/SC]', ...a); };
+
+    let followKey = null;  // 현재 따라가고 있는 곡의 식별자 (매칭 성공 시에만 설정)
+    let following = false; // 현재 SoundCloud가 가사를 구동 중인지
+    let lastMetaKey = '';  // 직전 tick의 메타 키 — 같으면 storage 읽기 스킵
+
+    // ── 라이브러리 메모리 캐시 ──────────────────────────────────────
+    // 매초 storage.get 대신 이 캐시를 사용. storage.onChanged로 자동 갱신.
+    let cachedLibrary = null;
+    chrome.storage.local.get(['savedLyrics'], (d) => { cachedLibrary = d.savedLyrics || []; });
+    chrome.storage.onChanged.addListener((changes) => {
+      if (changes.savedLyrics) cachedLibrary = changes.savedLyrics.newValue || [];
+    });
+
+    // ── DOM 요소 캐시 (getPositionMs 전용) ──────────────────────────
+    // querySelectorAll/querySelector를 매 프레임 호출하는 비용을 줄임.
+    // SoundCloud는 SPA이므로 주기적으로 재검색하되, 유효할 때는 재사용.
+    let _cachedAudio = null;
+    let _cachedPb = null;
+    let _cachedHandle = null;
+    let _cachedTimePassed = null;
+    let _domCacheAge = 0; // 마지막 DOM 재검색 시각 (performance.now)
+
+    function refreshDomCache() {
+      const els = [...document.querySelectorAll('audio')];
+      const playing = els.find(a => (a.currentSrc || a.src) && !a.paused);
+      _cachedAudio = playing
+        || (els.filter(a => a.currentSrc || a.src).sort((x, y) => (y.currentTime || 0) - (x.currentTime || 0))[0])
+        || els[0] || null;
+      _cachedPb = document.querySelector('.playbackTimeline__progressWrapper[role="progressbar"]')
+               || document.querySelector('.playbackTimeline [role="progressbar"]')
+               || document.querySelector('[role="progressbar"]');
+      _cachedHandle = document.querySelector('.playbackTimeline__progressHandle');
+      _cachedTimePassed = document.querySelector('.playbackTimeline__timePassed');
+      _domCacheAge = performance.now();
+    }
+
+    // 현재 재생 위치(ms)를 여러 소스로부터 얻는다.
+    //   1) <audio> 엘리먼트 currentTime (있으면 가장 정확)
+    //   2) 재생바 progressbar의 aria-valuenow(초) / 핸들 위치(%) × 길이
+    //   3) 시간 텍스트(.playbackTimeline__timePassed) 파싱
+    // DOM 캐시는 2초마다 갱신 → 60fps 루프에서 매번 querySelectorAll 방지
+    function getPositionMs() {
+      if (performance.now() - _domCacheAge > 2000) refreshDomCache();
+
+      const a = _cachedAudio;
+      if (a && a.currentTime > 0) return a.currentTime * 1000;
+
+      const pb = _cachedPb;
+      if (pb) {
+        const now = parseFloat(pb.getAttribute('aria-valuenow'));
+        const max = parseFloat(pb.getAttribute('aria-valuemax'));
+        const handle = _cachedHandle;
+        if (handle && !isNaN(max) && max > 0) {
+          const leftPct = parseFloat(handle.style.left);
+          if (!isNaN(leftPct)) return (leftPct / 100) * max * 1000;
+        }
+        if (!isNaN(now)) return now * 1000;
+      }
+
+      // 텍스트 폴백 (예: "1:23")
+      const t = _cachedTimePassed;
+      if (t) {
+        const ms = parseTimeTextMs(t.textContent);
+        if (ms != null) return ms;
+      }
+      return 0;
+    }
+
+    function parseTimeTextMs(txt) {
+      if (!txt) return null;
+      const nums = txt.replace(/[^0-9:]/g, '').split(':').map(Number).filter(n => !isNaN(n));
+      if (nums.length === 0) return null;
+      let sec = 0;
+      for (const n of nums) sec = sec * 60 + n;
+      return sec * 1000;
+    }
+
+    // 수동 재생 경로(play())에서도 동일한 위치 소스에 싱크하도록 주입
+    scGetPositionMs = getPositionMs;
+
+    // 현재 곡의 제목/가수 추출 (MediaSession 우선, 실패 시 플레이어 바 DOM)
+    function getMetadata() {
+      try {
+        const m = navigator.mediaSession && navigator.mediaSession.metadata;
+        if (m && m.title) return { title: m.title, artist: m.artist || '' };
+      } catch (e) {}
+
+      const titleEl = document.querySelector('.playbackSoundBadge__titleLink');
+      if (titleEl) {
+        const title = (titleEl.getAttribute('title') || titleEl.textContent || '').trim();
+        const artistEl = document.querySelector('.playbackSoundBadge__lightLink');
+        const artist = artistEl ? (artistEl.getAttribute('title') || artistEl.textContent || '').trim() : '';
+        if (title) return { title, artist };
+      }
+      return null;
+    }
+
+    // 매칭용 정규화: 괄호 부가설명/부가어 제거 후 영문·숫자·한글·가나·한자만 남김
+    //   ※ NFC 정규화 필수: SoundCloud 제목은 분해형(NFD, 예: か+結합탁점)으로 와서
+    //      완성형(NFC) 라이브러리 이름과 코드포인트가 달라 그대로는 매칭 실패함.
+    function normalize(s) {
+      return (s || '')
+        .normalize('NFC')
+        .toLowerCase()
+        .replace(/\(.*?\)|\[.*?\]|【.*?】/g, ' ')
+        .replace(/official|audio|lyric video|lyrics?|m\/?v|feat\.?|ft\.?|prod\.?/g, ' ')
+        .replace(/[^0-9a-z가-힣぀-ヿ一-鿿]/g, '')
+        .trim();
+    }
+
+    function matchLibrary(meta, list) {
+      const nTitle = normalize(meta.title);
+      const nArtist = normalize(meta.artist);
+      if (!nTitle) return null;
+
+      let best = null, bestScore = 0;
+      for (const item of list) {
+        const p = item.parsed || {};
+        const titles = [p.titleOrig, p.titleKo, item.name].filter(Boolean).map(normalize);
+        const artists = [p.artistOrig, p.artistKo].filter(Boolean).map(normalize);
+        const nameNorm = normalize(item.name);
+
+        let score = 0;
+        if (titles.some(t => t && (t === nTitle || t.includes(nTitle) || nTitle.includes(t)))) score += 2;
+        else if (nameNorm.includes(nTitle)) score += 1;
+
+        if (nArtist && artists.some(a => a && (a.includes(nArtist) || nArtist.includes(a)))) score += 1;
+        else if (nArtist && nameNorm.includes(nArtist)) score += 0.5;
+
+        if (score > bestScore) { bestScore = score; best = item; }
+      }
+      // 제목이 확실히 일치(2점)할 때만 채택해 오매칭 방지
+      return bestScore >= 2 ? best : null;
+    }
+
+    function stopFollowing() {
+      if (!following) return;
+      following = false;
+      stopPlayback(); // externalClock도 함께 정리됨
+      log('가사 추적 중지');
+    }
+
+    function handleTick() {
+      // 설정에서 '노래 자동 감지'를 끄면 동작하지 않음 (기본값: 켜짐)
+      if (state.settings && state.settings.autoDetectSong === false) {
+        if (following) { stopFollowing(); followKey = null; }
+        return;
+      }
+
+      const meta = getMetadata();
+      const key = meta ? normalize(meta.title) + '|' + normalize(meta.artist) : '';
+
+      // 이미 이 곡을 따라가는 중이면 그대로 유지
+      if (following && key && key === followKey) return;
+
+      // 곡이 바뀌었으면 기존 추적 중지
+      if (following && key !== followKey) {
+        stopFollowing();
+        followKey = null;
+      }
+
+      if (!meta) { lastMetaKey = ''; return; }
+
+      // 메타 키가 직전과 동일하면 이미 매칭 시도한 상태 → storage 재읽기 불필요
+      if (key === lastMetaKey) return;
+      lastMetaKey = key;
+
+      // 메모리 캐시 우선, 없으면 storage에서 읽기 (첫 초기화 전 등 드문 상황)
+      const tryMatch = (all) => {
+        const item = matchLibrary(meta, all);
+        if (!item) { log('매칭 실패 — SoundCloud:', meta, '| 후보 곡 수:', all.length); return; }
+
+        log('매칭 성공 →', item.name, '| 현재 위치(ms):', getPositionMs());
+        state.externalClock = { getTimeMs: () => getPositionMs() || 0 };
+        following = true;
+        followKey = key;
+        playFromRemoteLibrary(item);
+      };
+
+      if (cachedLibrary !== null) {
+        tryMatch(cachedLibrary);
+      } else {
+        chrome.storage.local.get(['savedLyrics'], (data) => {
+          cachedLibrary = data.savedLyrics || [];
+          tryMatch(cachedLibrary);
+        });
+      }
+    }
+
+    // SPA 곡 전환을 감지하기 위해 주기적으로 확인
+    const intervalId = setInterval(() => {
+      // 확장 프로그램이 리로드되어 컨텍스트가 무효화되면 인터벌을 정리한다.
+      // (이 처리가 없으면 "Extension context invalidated" 에러가 매초 발생)
+      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(intervalId); return; }
+      try { handleTick(); } catch (e) { /* 컨텍스트 일시 오류 등은 무시 */ }
+    }, 1000);
+    log('SoundCloud 자동 싱크 활성화');
+  }
 
   // 초기화
   loadSettings();
+  initSoundCloudSync();
 
 })();

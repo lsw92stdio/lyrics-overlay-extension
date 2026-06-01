@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lyrics Overlay — Guide</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:         #141517;
+      --bg2:        #1e2024;
+      --bg3:        #26282d;
+      --border:     rgba(255,255,255,0.07);
+      --accent:     #00FFA3;
+      --accent-dim: rgba(0,255,163,0.12);
+      --text:       #efeff1;
+      --muted:      #adadb8;
+      --dim:        #57575f;
+      --radius:     10px;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      padding-bottom: 60px;
+    }
+
+    /* ── 헤더 ── */
+    .hero {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 24px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .hero-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      background: var(--bg3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .hero-text { flex: 1; min-width: 0; }
+    .hero-title { font-size: 18px; font-weight: 700; }
+    .hero-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .lang-switcher { display: flex; gap: 5px; flex-shrink: 0; }
+    .lang-btn {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .lang-btn:hover { border-color: rgba(0,255,163,0.3); color: var(--text); }
+    .lang-btn.active {
+      background: var(--accent-dim);
+      border-color: rgba(0,255,163,0.4);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* ── 언어 섹션 ── */
+    .lang-section { display: none; }
+    .lang-section.visible { display: block; }
+
+    /* ── 본문 ── */
+    .content { max-width: 780px; margin: 0 auto; padding: 28px 22px 0; }
+
+    /* ── 섹션 ── */
+    .section { margin-bottom: 32px; }
+    .section-title {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 15px; font-weight: 700; color: var(--text);
+      margin-bottom: 14px; padding-bottom: 9px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title .num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(0,255,163,0.3);
+      color: var(--accent); border-radius: 50%;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+
+    /* ── 카드 ── */
+    .sub {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 13px 15px;
+      margin-bottom: 9px;
+    }
+    .sub-title {
+      font-size: 12.5px; font-weight: 600;
+      color: var(--accent); margin-bottom: 9px;
+    }
+    .sub ul, .sub ol { padding-left: 16px; color: var(--muted); }
+    .sub ul li, .sub ol li { margin-bottom: 5px; }
+    .sub p { color: var(--muted); }
+
+    /* ── 인라인 코드 ── */
+    code {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+    }
+
+    /* ── 코드 블록 ── */
+    pre {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 14px;
+      margin: 9px 0;
+      overflow-x: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    /* ── 번호 스텝 ── */
+    .steps { counter-reset: step; padding-left: 0; list-style: none; }
+    .steps li {
+      counter-increment: step;
+      position: relative;
+      padding-left: 30px;
+      margin-bottom: 8px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute; left: 0; top: 3px;
+      display: flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px;
+      background: var(--bg3);
+      border: 1px solid rgba(0,255,163,0.2);
+      color: var(--accent); border-radius: 50%;
+      font-size: 10px; font-weight: 700;
+    }
+
+    /* ── 팁 박스 ── */
+    .tip {
+      background: rgba(0,255,163,0.05);
+      border: 1px solid rgba(0,255,163,0.18);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      color: var(--muted); font-size: 13px; margin: 9px 0;
+    }
+    .tip strong { color: var(--accent); }
+
+    /* ── 경고 박스 ── */
+    .warn {
+      background: rgba(224,64,64,0.06);
+      border: 1px solid rgba(224,64,64,0.25);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      color: var(--muted); font-size: 13px; margin: 9px 0;
+    }
+    .warn strong { color: #e06060; }
+
+    /* ── kbd ── */
+    kbd {
+      background: var(--bg3);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-bottom-width: 2px;
+      border-radius: 5px; padding: 1px 7px;
+      font-family: inherit; font-size: 12px; color: var(--text);
+    }
+
+    /* ── 설정 항목 테이블 ── */
+    .setting-list { list-style: none; padding: 0; }
+    .setting-list li {
+      display: flex; align-items: baseline; gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--muted);
+    }
+    .setting-list li:last-child { border-bottom: none; }
+    .setting-key {
+      flex-shrink: 0; min-width: 120px;
+      color: var(--text); font-size: 13px; font-weight: 500;
+    }
+
+    /* ── 테마 배지 ── */
+    .theme-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 5px; padding: 2px 8px;
+      font-size: 12px; color: var(--muted); margin: 2px 3px 2px 0;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    /* ── 2줄 예시 ── */
+    .lyric-preview {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px; margin: 9px 0;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 3px; text-align: center;
+    }
+    .lyric-preview .l-orig { font-size: 14px; color: #FFA800; font-weight: 600; }
+    .lyric-preview .l-pron { font-size: 12px; color: #F5E6CC; }
+    .lyric-preview .l-main { font-size: 22px; font-weight: 700; color: #fff; margin-top: 2px; }
+
+    /* ── 푸터 ── */
+    footer {
+      text-align: center; color: var(--dim); font-size: 12px;
+      margin-top: 48px; padding: 20px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="hero">
+  <div class="hero-icon">🎵</div>
+  <div class="hero-text">
+    <div class="hero-title">Lyrics Overlay</div>
+    <div class="hero-sub" id="heroSub"></div>
+  </div>
+  <div class="lang-switcher">
+    <button class="lang-btn" data-lang="ko">한국어</button>
+    <button class="lang-btn" data-lang="en">English</button>
+    <button class="lang-btn" data-lang="ja">日本語</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     한국어
+══════════════════════════════════════ -->
+<div class="lang-section" data-lang="ko">
+<div class="content">
+
+  <!-- 1. 기본 사용법 -->
+  <div class="section">
+    <div class="section-title"><span class="num">1</span> 기본적인 사용 방법</div>
+
+    <div class="sub">
+      <div class="sub-title">🔘 팝업 헤더 — 리모컨 ON/OFF</div>
+      <p>확장프로그램 아이콘을 클릭하면 팝업 상단에 <strong>리모컨 ON / 리모컨 OFF</strong> 버튼이 있습니다. 이 버튼은 현재 열린 사이트에만 적용되는 사이트별 설정으로, ON 상태일 때 해당 페이지 위에 플로팅 리모컨이 표시됩니다.</p>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎵 플레이어 탭</div>
+      <ul>
+        <li><strong>SRT 로드:</strong> 라이브러리에서 곡을 클릭하거나 플레이어 영역에 <code>.srt</code> 파일 드래그 앤 드롭</li>
+        <li><strong>재생 / 일시정지 (▶ / ⏸):</strong> 가사 진행 제어</li>
+        <li><strong>정지 (■):</strong> 재생을 완전히 멈추고 처음으로 돌아감</li>
+        <li><strong>프로그레스 바:</strong> 클릭하면 해당 위치로 바로 이동</li>
+        <li><strong>타임라인:</strong> SRT 로드 후 플레이어 탭 하단에 가사 목록이 표시됩니다. 각 항목을 클릭하면 해당 가사 위치로 이동합니다.</li>
+        <li><strong>싱크 조절:</strong> 영상과 가사 타이밍이 안 맞을 때 조정
+          <div style="margin-top:5px;">
+            <span style="white-space:nowrap"><kbd>←</kbd> <kbd>→</kbd> ±100ms</span> &nbsp;|&nbsp;
+            <span style="white-space:nowrap"><kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> ±500ms</span> &nbsp;|&nbsp;
+            <span style="white-space:nowrap"><kbd>R</kbd> 또는 UI의 ↺ 버튼으로 초기화</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">📁 라이브러리 탭</div>
+      <ul>
+        <li><strong>파일 추가:</strong> 탭 안으로 <code>.srt</code> 파일을 드래그 앤 드롭하면 여러 파일을 한 번에 등록 가능</li>
+        <li><strong>검색:</strong> 번호·가수·제목·키워드로 검색. 매칭된 항목은 어떤 필드에서 검색됐는지 칩(chip)으로 표시됨</li>
+        <li><strong>시트 연동:</strong> 설정에 저장된 구글 시트 URL에서 데이터를 가져와 라이브러리에 병합</li>
+        <li><strong>시트 양식 복사:</strong> 현재 저장된 가사 전체를 구글 시트에 붙여넣을 수 있는 형식(TSV, 3열)으로 클립보드에 복사</li>
+        <li><strong>일괄 삭제:</strong> 저장된 모든 가사 삭제 (확인 대화창 표시)</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">⚙️ 설정 탭</div>
+      <ul class="setting-list">
+        <li><span class="setting-key">원문 / 발음 / 한국어</span> 각 줄의 표시 여부, 폰트 크기, 색상 개별 설정</li>
+        <li><span class="setting-key">배경</span> 배경색, 투명도(0~100%), 블러 강도</li>
+        <li><span class="setting-key">위치 지정</span> 화면을 자유롭게 드래그하거나 <strong>영역 선택 🎯</strong>으로 특정 영역(예: 유튜브 플레이어)에 고정</li>
+        <li><span class="setting-key">애니메이션</span> 페이드 / 슬라이드 / 없음</li>
+        <li><span class="setting-key">텍스트 외곽선</span> 글자에 외곽선(drop shadow) 적용 여부</li>
+        <li><span class="setting-key">곡 종료 알림</span> 마지막 가사 이후 <em>🎵 Finish 🎵</em> 알림 표시</li>
+        <li><span class="setting-key">진행 바</span> 브라우저 하단에 재생 위치 표시 바 표시 여부</li>
+        <li><span class="setting-key">리모컨 버튼</span> 플로팅 리모컨에 표시할 버튼 개별 선택 (라이브러리·타임라인·영역 선택·재생/정지·싱크 조절)</li>
+        <li><span class="setting-key">가수/제목 표시</span> 라이브러리 및 플레이어에서 이름 표시 방식: 원문+한국어 / 원문 우선 / 한국어 우선</li>
+        <li><span class="setting-key">구글 시트 URL</span> 시트 연동에 사용할 스프레드시트 주소</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 2. SRT 작성 규칙 -->
+  <div class="section">
+    <div class="section-title"><span class="num">2</span> SRT 자막 작성 규칙</div>
+
+    <div class="sub">
+      <div class="sub-title">✅ 줄 구분 방법</div>
+      <p style="margin-bottom:8px;">한 자막 블록 안에서 줄을 나누는 방법은 두 가지입니다:</p>
+      <ul style="margin-bottom:10px;">
+        <li>텍스트 줄 내에서 <code>\N</code> (백슬래시 + 대문자 N) 사용</li>
+        <li>SRT 파일에서 텍스트를 실제 여러 줄로 작성</li>
+      </ul>
+      <div class="warn"><strong>⚠️ 주의:</strong> <code>\n</code> 소문자는 줄 구분자로 인식되지 않습니다. 반드시 대문자 <code>\N</code>을 사용하세요.</div>
+      <pre>1
+00:00:10,000 --> 00:00:15,000
+<span style="color:var(--accent)">첫 번째 줄\N두 번째 줄</span>
+
+<span style="color:var(--dim)">또는 실제 줄바꿈으로도 동일하게 동작:</span>
+
+2
+00:00:16,000 --> 00:00:20,000
+<span style="color:var(--accent)">첫 번째 줄
+두 번째 줄</span></pre>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">✅ 1줄 / 2줄 / 3줄 자동 스타일</div>
+      <p style="margin-bottom:10px;"><code>\N</code>으로 구분된 줄 수에 따라 스타일이 자동으로 적용됩니다:</p>
+      <ul style="margin-bottom:12px;">
+        <li><strong>1줄:</strong> 번역 스타일(크게·흰색)로 단독 표시</li>
+        <li><strong>2줄:</strong> 첫째 줄 = <span style="color:#FFA800">원문</span>, 둘째 줄 = <span style="color:#fff">번역(크게)</span></li>
+        <li><strong>3줄:</strong> 첫째 줄 = <span style="color:#FFA800">원문</span>, 둘째 줄 = <span style="color:#F5E6CC">발음</span>, 셋째 줄 = <span style="color:#fff">번역(크게)</span></li>
+      </ul>
+      <pre>1
+00:00:05,000 --> 00:00:10,000
+<span style="color:#FFA800">君の心へ続く長い一本道は</span>\N<span style="color:#F5E6CC">키미노 코코로에 츠즈쿠 나가이 잇폰미치와</span>\N<span style="color:#fff">너의 마음으로 이어지는 기나긴 외길은</span></pre>
+      <p style="color:var(--muted);font-size:12px;margin-top:10px;">실제 오버레이 표시:</p>
+      <div class="lyric-preview">
+        <span class="l-orig">君の心へ続く長い一本道は</span>
+        <span class="l-pron">키미노 코코로에 츠즈쿠 나가이 잇폰미치와</span>
+        <span class="l-main">너의 마음으로 이어지는 기나긴 외길은</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 플로팅 리모컨 -->
+  <div class="section">
+    <div class="section-title"><span class="num">3</span> 플로팅 리모컨</div>
+
+    <div class="sub">
+      <div class="sub-title">🔘 활성화 방법</div>
+      <p>팝업 헤더의 <strong>리모컨 ON</strong> 버튼을 누르면 현재 사이트에서 리모컨이 표시됩니다. 사이트마다 개별 설정이 저장되므로, 유튜브는 ON·다른 사이트는 OFF 식으로 각각 관리할 수 있습니다.</p>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎮 버튼 구성</div>
+      <ul class="setting-list">
+        <li><span class="setting-key">⋮⋮ 드래그 핸들</span> 드래그로 화면 위 임의 위치로 이동. 위치는 자동 저장됨</li>
+        <li><span class="setting-key">🎵 라이브러리</span> 저장된 가사 목록 패널 열기. 검색 후 클릭하면 즉시 로드 및 재생</li>
+        <li><span class="setting-key">📜 타임라인</span> 현재 가사의 전체 타임라인 패널 열기. 클릭 시 해당 위치로 이동</li>
+        <li><span class="setting-key">🎯 영역 선택</span> 오버레이가 표시될 영역을 마우스로 지정</li>
+        <li><span class="setting-key">▶ / ■</span> 재생·일시정지 / 정지</li>
+        <li><span class="setting-key">− / 0.0s / +</span> 싱크 ±0.1초 조절. 가운데 값을 클릭하면 0으로 초기화</li>
+        <li><span class="setting-key">› 최소화</span> 리모컨을 핸들만 남기고 최소화 / 다시 클릭으로 복원</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎨 사이트별 테마 색상</div>
+      <p style="margin-bottom:8px;">접속한 사이트에 따라 리모컨 색상이 자동으로 변경됩니다:</p>
+      <div>
+        <span class="theme-badge"><span class="dot" style="background:#00FFA3"></span>치지직 / 기본</span>
+        <span class="theme-badge"><span class="dot" style="background:#FF0033"></span>유튜브</span>
+        <span class="theme-badge"><span class="dot" style="background:#9147FF"></span>트위치</span>
+        <span class="theme-badge"><span class="dot" style="background:#FF5500"></span>사운드클라우드</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 구글 시트 연동 -->
+  <div class="section">
+    <div class="section-title"><span class="num">4</span> 구글 시트 연동</div>
+
+    <div class="sub">
+      <div class="sub-title">📋 시트 열 구성</div>
+      <ul>
+        <li><strong>A열:</strong> 곡 이름 (아티스트 - 제목 형식 권장)</li>
+        <li><strong>B열:</strong> SRT 전체 텍스트</li>
+        <li><strong>C열:</strong> 키워드 (쉼표로 구분, 선택 사항) — 라이브러리 검색에 활용됨</li>
+        <li><strong>D열:</strong> Auto Only (선택 사항) — <code>1</code>을 입력하면 해당 가사는 라이브러리 목록·검색·곡 수에 표시되지 않고, 사운드클라우드 등 <strong>자동 감지로만</strong> 불러와 표시됩니다. 비워두면 일반 가사로 모든 곳에서 사용 가능</li>
+      </ul>
+      <div class="tip"><strong>💡 팁:</strong> 라이브러리 탭의 <strong>시트 양식 복사</strong> 버튼을 누르면 현재 저장된 모든 가사가 A·B·C 3열 형식으로 클립보드에 복사됩니다. 시트에 <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>만 하면 됩니다.</div>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">⬇️ 시트에서 가져오기</div>
+      <ol class="steps">
+        <li>구글 시트 우측 상단 <strong>[공유]</strong> → 일반 액세스를 <strong>"링크가 있는 모든 사용자"</strong>로 변경 후 URL 복사</li>
+        <li><strong>설정(⚙) 탭</strong>의 <strong>구글 시트 연동</strong> URL 입력창에 붙여넣기 후 저장</li>
+        <li><strong>라이브러리(📁) 탭</strong>에서 <strong>시트 연동</strong> 버튼 클릭</li>
+      </ol>
+      <div class="tip"><strong>💡 병합 방식:</strong> 가져오기는 전체 덮어쓰기가 아닌 <strong>병합</strong>입니다. 동일 곡(아티스트+제목 기준)은 업데이트되고, 새 곡은 추가됩니다. 기존 데이터는 유지됩니다.</div>
+      <div class="tip"><strong>💡 자동 연동:</strong> 라이브러리가 비어있고 시트 URL이 저장돼 있으면, 팝업을 열거나 리모컨의 라이브러리 패널을 처음 열 때 자동으로 시트 데이터를 가져옵니다.</div>
+    </div>
+  </div>
+
+  <!-- 5. 백업 및 복원 -->
+  <div class="section">
+    <div class="section-title"><span class="num">5</span> 데이터 백업 및 복원 (JSON)</div>
+
+    <div class="sub">
+      <div class="sub-title">💾 라이브러리 데이터</div>
+      <ul>
+        <li><strong>내보내기:</strong> 저장된 모든 가사 목록을 <code>.json</code> 파일로 저장</li>
+        <li><strong>가져오기:</strong> <code>.json</code> 파일을 불러와 현재 라이브러리에 <strong>병합</strong> (동일 곡 업데이트 + 새 곡 추가, 전체 덮어쓰기 아님)</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">⚙️ 환경 설정 데이터</div>
+      <ul>
+        <li><strong>내보내기:</strong> 디자인 설정(폰트·색상·애니메이션 등) + 리모컨 위치 + 리모컨 최소화 상태를 <code>.json</code>으로 저장</li>
+        <li><strong>가져오기:</strong> 저장해둔 설정 파일을 불러오면 모든 설정이 즉시 복원됨</li>
+        <li><strong>기본값 복원:</strong> 설정을 초기 기본값으로 리셋</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+<footer>즐거운 음악 감상 &amp; 스트리밍 되시길 바랍니다! 🎧<br><span style="margin-top:4px;display:block;color:var(--dim)">Lyrics Overlay — made with Gemini &amp; Claude</span></footer>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     English
+══════════════════════════════════════ -->
+<div class="lang-section" data-lang="en">
+<div class="content">
+
+  <!-- 1. Basic Usage -->
+  <div class="section">
+    <div class="section-title"><span class="num">1</span> Basic Usage</div>
+
+    <div class="sub">
+      <div class="sub-title">🔘 Popup Header — Remote ON/OFF</div>
+      <p>Click the extension icon to open the popup. At the top you'll find a <strong>Remote ON / Remote OFF</strong> button. This is a per-site toggle — when ON, the floating remote control appears on the current page. Each website remembers its own setting independently.</p>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎵 Player Tab</div>
+      <ul>
+        <li><strong>Load SRT:</strong> Click a track in the library, or drag &amp; drop a <code>.srt</code> file onto the player area</li>
+        <li><strong>Play / Pause (▶ / ⏸):</strong> Control lyrics playback</li>
+        <li><strong>Stop (■):</strong> Stop playback and reset position to the beginning</li>
+        <li><strong>Progress bar:</strong> Click anywhere on the bar to jump to that position</li>
+        <li><strong>Timeline:</strong> After loading an SRT, a scrollable list of all lyrics appears at the bottom of the Player tab. Click any entry to jump to that lyric.</li>
+        <li><strong>Sync adjust:</strong> Fine-tune timing when lyrics are out of sync with the video
+          <div style="margin-top:5px;">
+            <span style="white-space:nowrap"><kbd>←</kbd> <kbd>→</kbd> ±100ms</span> &nbsp;|&nbsp;
+            <span style="white-space:nowrap"><kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> ±500ms</span> &nbsp;|&nbsp;
+            <span style="white-space:nowrap"><kbd>R</kbd> or the ↺ button to reset</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">📁 Library Tab</div>
+      <ul>
+        <li><strong>Add files:</strong> Drag &amp; drop one or more <code>.srt</code> files onto the tab to register them all at once</li>
+        <li><strong>Search:</strong> Search by number, artist, title, or keyword. Matching results show a chip indicating which field matched</li>
+        <li><strong>Sheet Sync:</strong> Import lyrics from the configured Google Sheet URL and merge into the library</li>
+        <li><strong>Copy Sheet Format:</strong> Copies all saved lyrics to the clipboard as a 3-column TSV (Name / SRT / Keywords) ready to paste into Google Sheets</li>
+        <li><strong>Clear All:</strong> Delete all saved lyrics (confirmation dialog shown)</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">⚙️ Settings Tab</div>
+      <ul class="setting-list">
+        <li><span class="setting-key">Original / Pron / Korean</span> Show/hide, font size, and color for each lyric line independently</li>
+        <li><span class="setting-key">Background</span> Background color, opacity (0–100%), and blur intensity</li>
+        <li><span class="setting-key">Position</span> Drag freely on screen or use <strong>Select Area 🎯</strong> to pin lyrics to a specific region (e.g., the video player)</li>
+        <li><span class="setting-key">Animation</span> Fade / Slide / None</li>
+        <li><span class="setting-key">Text Shadow</span> Toggle outline/drop-shadow on lyric text</li>
+        <li><span class="setting-key">End Notice</span> Show a <em>🎵 Finish 🎵</em> notification after the last lyric ends</li>
+        <li><span class="setting-key">Progress Bar</span> Show a thin progress bar at the bottom of the browser viewport</li>
+        <li><span class="setting-key">Remote Buttons</span> Choose which buttons appear on the floating remote (Library / Timeline / Area / Play-Stop / Sync)</li>
+        <li><span class="setting-key">Display Language</span> How artist/title names are shown in library and player: Original+Korean / Original first / Korean first</li>
+        <li><span class="setting-key">Sheet URL</span> Google Spreadsheet URL used for sheet sync</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 2. SRT Format -->
+  <div class="section">
+    <div class="section-title"><span class="num">2</span> SRT File Format</div>
+
+    <div class="sub">
+      <div class="sub-title">✅ How to separate lines</div>
+      <p style="margin-bottom:8px;">There are two ways to split lines within a single subtitle block:</p>
+      <ul style="margin-bottom:10px;">
+        <li>Use <code>\N</code> (backslash + uppercase N) within the text</li>
+        <li>Write the text on separate lines in the SRT file</li>
+      </ul>
+      <div class="warn"><strong>⚠️ Note:</strong> Lowercase <code>\n</code> is NOT recognized as a line separator. Always use uppercase <code>\N</code>.</div>
+      <pre>1
+00:00:10,000 --> 00:00:15,000
+<span style="color:var(--accent)">First line\NSecond line</span>
+
+<span style="color:var(--dim)">Or using actual line breaks in the file (same result):</span>
+
+2
+00:00:16,000 --> 00:00:20,000
+<span style="color:var(--accent)">First line
+Second line</span></pre>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">✅ 1-line / 2-line / 3-line auto styling</div>
+      <p style="margin-bottom:10px;">The number of <code>\N</code>-separated lines determines which style is applied:</p>
+      <ul style="margin-bottom:12px;">
+        <li><strong>1 line:</strong> Displayed in main style (large, white)</li>
+        <li><strong>2 lines:</strong> Line 1 = <span style="color:#FFA800">Original</span>, Line 2 = <span style="color:#fff">Translation (large)</span></li>
+        <li><strong>3 lines:</strong> Line 1 = <span style="color:#FFA800">Original</span>, Line 2 = <span style="color:#F5E6CC">Pronunciation</span>, Line 3 = <span style="color:#fff">Translation (large)</span></li>
+      </ul>
+      <pre>1
+00:00:05,000 --> 00:00:10,000
+<span style="color:#FFA800">君の心へ続く長い一本道は</span>\N<span style="color:#F5E6CC">Kimi no kokoro e tsuzuku nagai ipponmichi wa</span>\N<span style="color:#fff">The long single road leading to your heart</span></pre>
+      <p style="color:var(--muted);font-size:12px;margin-top:10px;">Overlay preview:</p>
+      <div class="lyric-preview">
+        <span class="l-orig">君の心へ続く長い一本道は</span>
+        <span class="l-pron">Kimi no kokoro e tsuzuku nagai ipponmichi wa</span>
+        <span class="l-main">The long single road leading to your heart</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Floating Remote -->
+  <div class="section">
+    <div class="section-title"><span class="num">3</span> Floating Remote Control</div>
+
+    <div class="sub">
+      <div class="sub-title">🔘 How to enable</div>
+      <p>Click the <strong>Remote ON</strong> button in the popup header to show the remote on the current site. Each site stores its own setting, so you can have the remote ON for YouTube but OFF for other sites.</p>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎮 Controls</div>
+      <ul class="setting-list">
+        <li><span class="setting-key">⋮⋮ Drag handle</span> Drag to reposition anywhere on screen. Position is saved automatically</li>
+        <li><span class="setting-key">🎵 Library</span> Opens the library panel with search. Click any track to load and play it immediately</li>
+        <li><span class="setting-key">📜 Timeline</span> Opens the full lyric timeline. Click any entry to seek to that position</li>
+        <li><span class="setting-key">🎯 Area Select</span> Draw a region on the page to pin lyrics inside it</li>
+        <li><span class="setting-key">▶ / ■</span> Play/Pause and Stop</li>
+        <li><span class="setting-key">− / 0.0s / +</span> Adjust sync by ±0.1s. Click the center value to reset to 0</li>
+        <li><span class="setting-key">› Minimize</span> Collapse the remote to just the drag handle. Click again to restore</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎨 Site themes</div>
+      <p style="margin-bottom:8px;">The remote color automatically matches the site you're on:</p>
+      <div>
+        <span class="theme-badge"><span class="dot" style="background:#00FFA3"></span>Chzzk / Default</span>
+        <span class="theme-badge"><span class="dot" style="background:#FF0033"></span>YouTube</span>
+        <span class="theme-badge"><span class="dot" style="background:#9147FF"></span>Twitch</span>
+        <span class="theme-badge"><span class="dot" style="background:#FF5500"></span>SoundCloud</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Google Sheet Sync -->
+  <div class="section">
+    <div class="section-title"><span class="num">4</span> Google Sheet Sync</div>
+
+    <div class="sub">
+      <div class="sub-title">📋 Sheet column layout</div>
+      <ul>
+        <li><strong>Column A:</strong> Track name (recommended format: Artist - Title)</li>
+        <li><strong>Column B:</strong> Full SRT text</li>
+        <li><strong>Column C:</strong> Keywords (comma-separated, optional) — used for library search</li>
+        <li><strong>Column D:</strong> Auto Only (optional) — set to <code>1</code> to hide the lyric from the library list, search, and song count; it's only loaded via <strong>auto-detection</strong> (e.g. SoundCloud). Leave empty for a normal lyric available everywhere</li>
+      </ul>
+      <div class="tip"><strong>💡 Tip:</strong> Click <strong>Copy Sheet Format</strong> in the Library tab to copy all saved lyrics to the clipboard in the correct 3-column format. Just paste (<span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>) into the sheet.</div>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">⬇️ Importing from a sheet</div>
+      <ol class="steps">
+        <li>In your Google Sheet, click <strong>[Share]</strong> → set General Access to <strong>"Anyone with the link"</strong>, then copy the URL</li>
+        <li>Go to <strong>Settings (⚙) tab</strong> → paste the URL into the <strong>Google Sheet Sync</strong> field and save</li>
+        <li>Go to the <strong>Library (📁) tab</strong> and click the <strong>Sheet Sync</strong> button</li>
+      </ol>
+      <div class="tip"><strong>💡 Merge behavior:</strong> Importing merges with your existing library — tracks with the same artist+title are updated, new tracks are added. Nothing is deleted.</div>
+      <div class="tip"><strong>💡 Auto-sync:</strong> If the library is empty and a sheet URL is saved, the app will automatically fetch the sheet when the popup is opened or the remote library panel is first opened.</div>
+    </div>
+  </div>
+
+  <!-- 5. Backup & Restore -->
+  <div class="section">
+    <div class="section-title"><span class="num">5</span> Backup &amp; Restore (JSON)</div>
+
+    <div class="sub">
+      <div class="sub-title">💾 Library Data</div>
+      <ul>
+        <li><strong>Export:</strong> Saves all lyrics as a <code>.json</code> file</li>
+        <li><strong>Import:</strong> Loads a <code>.json</code> file and <strong>merges</strong> it into the current library (updates existing tracks, adds new ones — not a full overwrite)</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">⚙️ Settings Data</div>
+      <ul>
+        <li><strong>Export:</strong> Saves design settings (font, color, animation, etc.) plus remote position and minimized state as a <code>.json</code> file</li>
+        <li><strong>Import:</strong> Loads a saved settings file to instantly restore all preferences</li>
+        <li><strong>Restore Defaults:</strong> Resets all settings back to factory defaults</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+<footer>Enjoy your music &amp; streaming! 🎧<br><span style="margin-top:4px;display:block;color:var(--dim)">Lyrics Overlay — made with Gemini &amp; Claude</span></footer>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     日本語
+══════════════════════════════════════ -->
+<div class="lang-section" data-lang="ja">
+<div class="content">
+
+  <!-- 1. 基本的な使い方 -->
+  <div class="section">
+    <div class="section-title"><span class="num">1</span> 基本的な使い方</div>
+
+    <div class="sub">
+      <div class="sub-title">🔘 ポップアップヘッダー — リモコン ON/OFF</div>
+      <p>拡張機能のアイコンをクリックするとポップアップが開き、上部に <strong>リモコン ON / リモコン OFF</strong> ボタンがあります。これはサイトごとの設定で、ON にすると現在のページ上にフローティングリモコンが表示されます。サイトごとに個別に記憶されます。</p>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎵 プレイヤータブ</div>
+      <ul>
+        <li><strong>SRT 読み込み:</strong> ライブラリから曲をクリックするか、プレイヤー領域に <code>.srt</code> ファイルをドラッグ＆ドロップ</li>
+        <li><strong>再生 / 一時停止 (▶ / ⏸):</strong> 歌詞の進行を制御</li>
+        <li><strong>停止 (■):</strong> 再生を完全に止め、先頭に戻る</li>
+        <li><strong>プログレスバー:</strong> クリックするとその位置に移動</li>
+        <li><strong>タイムライン:</strong> SRT 読み込み後、プレイヤータブ下部に歌詞一覧が表示されます。各項目をクリックするとその位置に移動します。</li>
+        <li><strong>同期調整:</strong> 映像と歌詞のタイミングがずれているときに調整
+          <div style="margin-top:5px;">
+            <span style="white-space:nowrap"><kbd>←</kbd> <kbd>→</kbd> ±100ms</span> &nbsp;|&nbsp;
+            <span style="white-space:nowrap"><kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> ±500ms</span> &nbsp;|&nbsp;
+            <span style="white-space:nowrap"><kbd>R</kbd> または UI の ↺ ボタンでリセット</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">📁 ライブラリタブ</div>
+      <ul>
+        <li><strong>ファイル追加:</strong> タブ内に <code>.srt</code> ファイルをドラッグ＆ドロップで複数ファイルを一括登録</li>
+        <li><strong>検索:</strong> 番号・アーティスト・タイトル・キーワードで検索。マッチしたフィールドをチップで表示</li>
+        <li><strong>シート同期:</strong> 設定に保存したGoogleシートURLからデータを取得してライブラリにマージ</li>
+        <li><strong>シート形式コピー:</strong> 保存済みの全歌詞を3列TSV形式（名前 / SRT / キーワード）でクリップボードにコピー</li>
+        <li><strong>一括削除:</strong> 保存された全歌詞を削除（確認ダイアログあり）</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">⚙️ 設定タブ</div>
+      <ul class="setting-list">
+        <li><span class="setting-key">原文 / 読み仮名 / 韓国語</span> 各行の表示有無・フォントサイズ・色を個別設定</li>
+        <li><span class="setting-key">背景</span> 背景色・透明度(0〜100%)・ぼかし強度</li>
+        <li><span class="setting-key">位置指定</span> 画面上を自由にドラッグ、または <strong>エリア選択 🎯</strong> で特定領域（例: 動画プレイヤー）に固定</li>
+        <li><span class="setting-key">アニメーション</span> フェード / スライド / なし</li>
+        <li><span class="setting-key">テキスト縁取り</span> 歌詞テキストの輪郭線（ドロップシャドウ）の有無</li>
+        <li><span class="setting-key">終了通知</span> 最後の歌詞が終わった後に <em>🎵 Finish 🎵</em> 通知を表示</li>
+        <li><span class="setting-key">プログレスバー</span> ブラウザ下部に再生位置バーを表示するか</li>
+        <li><span class="setting-key">リモコンボタン</span> フローティングリモコンに表示するボタンを個別選択（ライブラリ・タイムライン・エリア・再生停止・同期調整）</li>
+        <li><span class="setting-key">表示言語</span> ライブラリ・プレイヤーでのアーティスト/タイトル表示方式: 原文+韓国語 / 原文優先 / 韓国語優先</li>
+        <li><span class="setting-key">シートURL</span> シート同期に使用するGoogleスプレッドシートのURL</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 2. SRT 書き方 -->
+  <div class="section">
+    <div class="section-title"><span class="num">2</span> SRT ファイルの書き方</div>
+
+    <div class="sub">
+      <div class="sub-title">✅ 行の区切り方</div>
+      <p style="margin-bottom:8px;">1つの字幕ブロック内で行を分ける方法は2つあります：</p>
+      <ul style="margin-bottom:10px;">
+        <li>テキスト中に <code>\N</code>（バックスラッシュ + 大文字N）を使用</li>
+        <li>SRTファイル内でテキストを実際に複数行で記述</li>
+      </ul>
+      <div class="warn"><strong>⚠️ 注意:</strong> 小文字の <code>\n</code> は行区切りとして認識されません。必ず大文字 <code>\N</code> を使用してください。</div>
+      <pre>1
+00:00:10,000 --> 00:00:15,000
+<span style="color:var(--accent)">1行目\N2行目</span>
+
+<span style="color:var(--dim)">または実際の改行でも同じ結果になります：</span>
+
+2
+00:00:16,000 --> 00:00:20,000
+<span style="color:var(--accent)">1行目
+2行目</span></pre>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">✅ 1行 / 2行 / 3行 の自動スタイル</div>
+      <p style="margin-bottom:10px;"><code>\N</code> で区切られた行数に応じてスタイルが自動的に適用されます：</p>
+      <ul style="margin-bottom:12px;">
+        <li><strong>1行:</strong> メインスタイル（大きく・白色）で単独表示</li>
+        <li><strong>2行:</strong> 1行目 = <span style="color:#FFA800">原文</span>、2行目 = <span style="color:#fff">翻訳（大きく）</span></li>
+        <li><strong>3行:</strong> 1行目 = <span style="color:#FFA800">原文</span>、2行目 = <span style="color:#F5E6CC">読み仮名</span>、3行目 = <span style="color:#fff">翻訳（大きく）</span></li>
+      </ul>
+      <pre>1
+00:00:05,000 --> 00:00:10,000
+<span style="color:#FFA800">君の心へ続く長い一本道は</span>\N<span style="color:#F5E6CC">きみのこころへつづくながいいっぽんみちは</span>\N<span style="color:#fff">君の心へ続く 長い一本道は</span></pre>
+      <p style="color:var(--muted);font-size:12px;margin-top:10px;">オーバーレイでの表示例：</p>
+      <div class="lyric-preview">
+        <span class="l-orig">君の心へ続く長い一本道は</span>
+        <span class="l-pron">きみのこころへつづくながいいっぽんみちは</span>
+        <span class="l-main">君の心へ続く 長い一本道は</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. フローティングリモコン -->
+  <div class="section">
+    <div class="section-title"><span class="num">3</span> フローティングリモコン</div>
+
+    <div class="sub">
+      <div class="sub-title">🔘 有効化の方法</div>
+      <p>ポップアップヘッダーの <strong>リモコン ON</strong> ボタンを押すと、現在のサイトでリモコンが表示されます。サイトごとに設定が保存されるため、YouTubeはON・他のサイトはOFFのように個別管理できます。</p>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎮 ボタン構成</div>
+      <ul class="setting-list">
+        <li><span class="setting-key">⋮⋮ ドラッグ</span> ドラッグして画面上の任意の位置に移動。位置は自動保存</li>
+        <li><span class="setting-key">🎵 ライブラリ</span> 保存済み歌詞の一覧パネルを開く。検索してクリックするとすぐに読み込み・再生</li>
+        <li><span class="setting-key">📜 タイムライン</span> 現在の歌詞の全タイムラインパネルを開く。クリックでその位置に移動</li>
+        <li><span class="setting-key">🎯 エリア選択</span> オーバーレイを表示する領域をマウスで指定</li>
+        <li><span class="setting-key">▶ / ■</span> 再生・一時停止 / 停止</li>
+        <li><span class="setting-key">− / 0.0s / +</span> 同期を±0.1秒調整。中央の値をクリックすると0にリセット</li>
+        <li><span class="setting-key">› 最小化</span> リモコンをドラッグハンドルのみに縮小。再クリックで復元</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎨 サイト別テーマカラー</div>
+      <p style="margin-bottom:8px;">アクセスしているサイトに応じてリモコンの色が自動的に変わります：</p>
+      <div>
+        <span class="theme-badge"><span class="dot" style="background:#00FFA3"></span>チジック / デフォルト</span>
+        <span class="theme-badge"><span class="dot" style="background:#FF0033"></span>YouTube</span>
+        <span class="theme-badge"><span class="dot" style="background:#9147FF"></span>Twitch</span>
+        <span class="theme-badge"><span class="dot" style="background:#FF5500"></span>SoundCloud</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Googleシート同期 -->
+  <div class="section">
+    <div class="section-title"><span class="num">4</span> Googleシート同期</div>
+
+    <div class="sub">
+      <div class="sub-title">📋 シートの列構成</div>
+      <ul>
+        <li><strong>A列:</strong> 曲名（推奨形式: アーティスト - タイトル）</li>
+        <li><strong>B列:</strong> SRT全文</li>
+        <li><strong>C列:</strong> キーワード（カンマ区切り、任意）— ライブラリ検索で使用</li>
+        <li><strong>D列:</strong> Auto Only（任意）— <code>1</code> を入力すると、その歌詞はライブラリ一覧・検索・曲数に表示されず、SoundCloud などの<strong>自動検出でのみ</strong>読み込まれます。空欄なら通常の歌詞としてどこでも利用可能</li>
+      </ul>
+      <div class="tip"><strong>💡 ヒント:</strong> ライブラリタブの <strong>シート形式コピー</strong> ボタンを押すと、保存済みの全歌詞がA・B・C列の3列形式でクリップボードにコピーされます。シートに <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span> で貼り付けるだけです。</div>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">⬇️ シートからインポート</div>
+      <ol class="steps">
+        <li>Googleシート右上の <strong>[共有]</strong> → 一般アクセスを <strong>「リンクを知っている全員」</strong> に変更してURLをコピー</li>
+        <li><strong>設定(⚙)タブ</strong> の <strong>Googleシート同期</strong> URL欄に貼り付けて保存</li>
+        <li><strong>ライブラリ(📁)タブ</strong> で <strong>シート同期</strong> ボタンをクリック</li>
+      </ol>
+      <div class="tip"><strong>💡 マージ方式:</strong> インポートは完全上書きではなく <strong>マージ</strong> です。同じ曲（アーティスト+タイトル）は更新され、新しい曲は追加されます。既存データは保持されます。</div>
+      <div class="tip"><strong>💡 自動同期:</strong> ライブラリが空でシートURLが保存されている場合、ポップアップを開いたときやリモコンのライブラリパネルを初めて開いたときに自動的にシートデータを取得します。</div>
+    </div>
+  </div>
+
+  <!-- 5. バックアップ・復元 -->
+  <div class="section">
+    <div class="section-title"><span class="num">5</span> バックアップ・復元 (JSON)</div>
+
+    <div class="sub">
+      <div class="sub-title">💾 ライブラリデータ</div>
+      <ul>
+        <li><strong>エクスポート:</strong> 保存済みの全歌詞を <code>.json</code> ファイルとして保存</li>
+        <li><strong>インポート:</strong> <code>.json</code> ファイルを読み込んで現在のライブラリに <strong>マージ</strong>（同じ曲は更新、新しい曲は追加。完全上書きではありません）</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">⚙️ 設定データ</div>
+      <ul>
+        <li><strong>エクスポート:</strong> デザイン設定（フォント・色・アニメーション等）＋リモコン位置＋最小化状態を <code>.json</code> として保存</li>
+        <li><strong>インポート:</strong> 保存した設定ファイルを読み込むとすべての設定が即座に復元</li>
+        <li><strong>デフォルトに戻す:</strong> すべての設定を初期値にリセット</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+<footer>楽しい音楽鑑賞・配信をお楽しみください！ 🎧<br><span style="margin-top:4px;display:block;color:var(--dim)">Lyrics Overlay — made with Gemini &amp; Claude</span></footer>
+</div>
+
+
+<script src="help.js"></script>
+</body>
+</html>

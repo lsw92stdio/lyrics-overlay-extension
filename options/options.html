@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title data-i18n="ext_name"></title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <header class="options-header">
+      <h1 data-i18n="ext_name"></h1>
+      <span class="subtitle" data-i18n="sec_site_manager"></span>
+    </header>
+
+    <main class="options-main">
+      <div class="card">
+        <div class="card-header">
+          <h2 data-i18n="opt_title_configurations">Site-Specific Configurations</h2>
+          <button id="btnRefresh" class="btn-secondary" data-i18n="opt_btn_refresh">Refresh</button>
+        </div>
+        
+        <div class="table-container">
+          <table id="sitesTable">
+            <thead>
+              <tr>
+                <th data-i18n="opt_th_site">Site (Domain)</th>
+                <th data-i18n="opt_th_remote">Remote State</th>
+                <th data-i18n="opt_th_layout">Layout / Position</th>
+                <th data-i18n="opt_th_design">Custom Design</th>
+                <th data-i18n="opt_th_actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sitesList">
+              <!-- Site rows will be injected here -->
+            </tbody>
+          </table>
+          <div id="emptyState" class="empty-state hidden" data-i18n="opt_empty_state">
+            No site-specific configurations found.
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../lib/i18n.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

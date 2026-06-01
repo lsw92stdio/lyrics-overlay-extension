@@ -28,22 +28,21 @@ document.addEventListener('DOMContentLoaded', () => {
     timelineList: document.getElementById('timelineList'),
     timelineCount: document.getElementById('timelineCount'),
     libraryList: document.getElementById('libraryList'),
+    tabLibrary: document.getElementById('tab-library'),
+    libraryDropOverlay: document.getElementById('libraryDropOverlay'),
     btnAddLibrary: document.getElementById('btnAddLibrary'),
     btnExportLibrary: document.getElementById('btnExportLibrary'),
     btnReloadSheet: document.getElementById('btnReloadSheet'),
 
     btnExportSheetFormat: document.getElementById('btnExportSheetFormat'),
     btnImportLibrary: document.getElementById('btnImportLibrary'),
-    btnExportLibrary: document.getElementById('btnExportLibrary'),
     btnClearLibrary: document.getElementById('btnClearLibrary'),
     btnImportSettings: document.getElementById('btnImportSettings'),
     btnExportSettings: document.getElementById('btnExportSettings'),
     libraryFileInput: document.getElementById('libraryFileInput'),
     libraryJsonInput: document.getElementById('libraryJsonInput'),
     settingsJsonInput: document.getElementById('settingsJsonInput'),
-    tabLibrary: document.getElementById('tab-library'),
-    libraryList: document.getElementById('libraryList'),
-    libraryDropOverlay: document.getElementById('libraryDropOverlay'),
+    designJsonInput: document.getElementById('designJsonInput'),
     librarySearchInput: document.getElementById('librarySearchInput'),
     origFontSize: document.getElementById('origFontSize'),
     origFontSizeValue: document.getElementById('origFontSizeValue'),
@@ -67,26 +66,43 @@ document.addEventListener('DOMContentLoaded', () => {
     bgBlurValue: document.getElementById('bgBlurValue'),
     libraryDisplayLang: document.getElementById('libraryDisplayLang'),
     settingsAnimation: document.getElementById('settingsAnimation'),
+    settingsTextAlign: document.getElementById('settingsTextAlign'),
     textShadow: document.getElementById('textShadow'),
     googleSheetUrl: document.getElementById('googleSheetUrl'),
     btnSelectArea: document.getElementById('btnSelectArea'),
     libraryCount: document.getElementById('libraryCount'),
     btnSaveSettings: document.getElementById('btnSaveSettings'),
     btnResetSettings: document.getElementById('btnResetSettings'),
+    btnSaveDesign: document.getElementById('btnSaveDesign'),
+    btnResetDesign: document.getElementById('btnResetDesign'),
+    btnImportDesign: document.getElementById('btnImportDesign'),
+    btnExportDesign: document.getElementById('btnExportDesign'),
     showEndNotice: document.getElementById('showEndNotice'),
     showProgressBar: document.getElementById('showProgressBar'),
+    autoDetectSong: document.getElementById('autoDetectSong'),
+    pinColor: document.getElementById('pinColor'),
+    pinColorValue: document.getElementById('pinColorValue'),
     btnToggleRemote: document.getElementById('btnToggleRemote'),
     remoteBtnLibrary: document.getElementById('remoteBtnLibrary'),
     remoteBtnTimeline: document.getElementById('remoteBtnTimeline'),
     remoteBtnArea: document.getElementById('remoteBtnArea'),
     remoteBtnPlayStop: document.getElementById('remoteBtnPlayStop'),
-    remoteBtnSync: document.getElementById('remoteBtnSync')
+    remoteBtnSync: document.getElementById('remoteBtnSync'),
+    
+    // 디자인 커스텀
+    designTargetSelect: document.getElementById('designTargetSelect'),
+    optCurrentSite: document.getElementById('optCurrentSite'),
+    siteOverrideToggleRow: document.getElementById('siteOverrideToggleRow'),
+    useSiteOverride: document.getElementById('useSiteOverride'),
+    designControlsWrapper: document.getElementById('designControlsWrapper'),
+    btnOpenOptions: document.getElementById('btnOpenOptions')
   };
 
   let currentLyricsData = null;
   let parsedEntries = []; // SRT 파싱 결과 (타임라인용)
   let statusInterval = null;
   let activeTimelineIndex = -1;
+  let popupCurrentHostname = '';
 
   // ============================================================
   // 탭 전환
@@ -103,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 도움말 버튼
   document.getElementById('btnHelp').addEventListener('click', () => {
-    window.open('https://www.notion.so/Lyrics-Overlay-34d476544c8e80a0a754e3a3fdf23edf?source=copy_link', '_blank');
+    chrome.tabs.create({ url: chrome.runtime.getURL('help/help.html') });
   });
 
   // ============================================================
@@ -167,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (added !== false) {
         renderLibrary();
       }
-      showToast(`"${name}" 로드 완료 (${response.count}줄)`);
+      showToast(`${I18n.t('toast_loaded_lyrics')}: "${name}" (${response.count})`);
     }
   }
 
@@ -195,7 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
     els.currentTrack.classList.remove('drop-hover');
     const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.srt'));
     if (files.length === 0) {
-      showToast('SRT 파일만 드롭할 수 있습니다.');
+      showToast('SRT only');
+
       return;
     }
     await loadSRTFile(files[0]);
@@ -408,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await sendToContent({ type: 'ADJUST_SYNC', deltaMs: delta * direction });
       if (response?.success) {
         updateSyncDisplay(response.syncOffset);
-        showToast(`싱크: ${response.syncOffset >= 0 ? '+' : ''}${response.syncOffset}ms`);
+        showToast(`${response.syncOffset >= 0 ? '+' : ''}${response.syncOffset}ms`);
       }
     }
 
@@ -430,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const response = await sendToContent({ type: 'ADJUST_SYNC', deltaMs: -currentOffset });
     if (response?.success) {
       updateSyncDisplay(0);
-      showToast('싱크 초기화');
+      showToast(I18n.t('toast_sync_reset'));
     }
   }
 
@@ -506,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     renderLibrary();
     e.target.value = '';
-    if (addedCount > 0) showToast(`${addedCount}개 파일 추가/수정됨`);
+    if (addedCount > 0) showToast(`✓ ${addedCount}`);
   });
 
   // 라이브러리 목록 드래그 & 드롭 지원
@@ -531,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
     els.libraryDropOverlay.style.display = 'none';
     const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith('.srt'));
     if (files.length === 0) {
-      showToast('SRT 파일만 추가할 수 있습니다.');
+      showToast('SRT only');
       return;
     }
 
@@ -541,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (success !== false) addedCount++;
     }
     renderLibrary();
-    if (addedCount > 0) showToast(`${addedCount}개 파일 드롭 완료`);
+    if (addedCount > 0) showToast(`✓ ${addedCount}`);
   });
 
   // ============================================================
@@ -575,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const data = await getStorageData('savedLyrics');
     const list = data.savedLyrics || [];
     if (list.length === 0) {
-      showToast('내보낼 데이터가 없습니다.');
+      showToast(I18n.t('toast_no_export_data'));
       return;
     }
     const jsonStr = JSON.stringify(list, null, 2);
@@ -586,21 +603,21 @@ document.addEventListener('DOMContentLoaded', () => {
     a.download = 'lyrics_library.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('데이터를 내보냈습니다.');
+    showToast(I18n.t('toast_exported'));
   });
 
   els.btnClearLibrary.addEventListener('click', async () => {
-    if (!(await showConfirm('저장된 모든 가사 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다!'))) return;
+    if (!(await showConfirm(I18n.t('confirm_clear_library')))) return;
     await chrome.storage.local.set({ savedLyrics: [] });
     renderLibrary();
-    showToast('모든 가사가 삭제되었습니다.');
+    showToast(I18n.t('toast_cleared'));
   });
 
   els.btnExportSheetFormat.addEventListener('click', async () => {
     const data = await getStorageData('savedLyrics');
     const list = data.savedLyrics || [];
     if (list.length === 0) {
-      showToast('복사할 데이터가 없습니다.');
+      showToast(I18n.t('toast_no_copy_data'));
       return;
     }
 
@@ -611,7 +628,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return aIdx - bIdx;
     });
 
-    let tsvContent = 'Name\tSRT Text\tKeywords\n';
+    const quoteIfNeeded = (v) => (v.includes('\n') || v.includes('\r') || v.includes('"') || v.includes('\t')) ? `"${v}"` : v;
+
+    let tsvContent = 'Name\tSRT Text\tKeywords\tAuto Only\n';
     sortedList.forEach(item => {
       // 앞의 순번(숫자와 공백) 제거
       let cleanName = item.name.replace(/^\d+\s*/, '');
@@ -623,20 +642,18 @@ document.addEventListener('DOMContentLoaded', () => {
         keywordsStr = item.parsed.keywords.join(', ').replace(/"/g, '""');
       }
 
-      // 줄바꿈이 있는 경우 쌍따옴표로 감쌈 (구글 시트 붙여넣기 규격)
-      const formattedName = name.includes('\n') || name.includes('\r') || name.includes('"') ? `"${name}"` : name;
-      const formattedSrt = srtText.includes('\n') || srtText.includes('\r') || srtText.includes('"') ? `"${srtText}"` : srtText;
-      const formattedKeywords = keywordsStr.includes('\n') || keywordsStr.includes('\r') || keywordsStr.includes('"') ? `"${keywordsStr}"` : keywordsStr;
+      const autoOnlyStr = item.autoOnly ? '1' : '';
 
-      tsvContent += `${formattedName}\t${formattedSrt}\t${formattedKeywords}\n`;
+      // 줄바꿈/탭/따옴표가 있는 경우 쌍따옴표로 감쌈 (구글 시트 붙여넣기 규격)
+      tsvContent += `${quoteIfNeeded(name)}\t${quoteIfNeeded(srtText)}\t${quoteIfNeeded(keywordsStr)}\t${autoOnlyStr}\n`;
     });
 
     try {
       await navigator.clipboard.writeText(tsvContent);
-      showToast('시트 양식이 클립보드에 복사되었습니다. 시트에 붙여넣기(Ctrl+V) 하세요!');
+      showToast(I18n.t('toast_sheet_copied'));
     } catch (err) {
       console.error('Failed to copy: ', err);
-      showToast('클립보드 복사에 실패했습니다.');
+      showToast(I18n.t('toast_copy_failed'));
     }
   });
 
@@ -645,6 +662,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let list = data.savedLyrics || [];
     let added = 0;
     let updated = 0;
+    let autoOnlyAdded = 0;
+    let autoOnlyUpdated = 0;
 
     let maxIdx = 0;
     list.forEach(item => {
@@ -701,22 +720,42 @@ document.addEventListener('DOMContentLoaded', () => {
       const entryToSave = {
         ...newItem,
         name: standardName,
-        parsed: parsed
+        parsed: parsed,
+        // Auto Only는 시트(가져온 데이터)를 기준으로 반영.
+        autoOnly: !!newItem.autoOnly
       };
 
       if (existingIndex >= 0) {
         list[existingIndex] = { ...list[existingIndex], ...entryToSave, updatedAt: Date.now() };
         updated++;
+        if (newItem.autoOnly) autoOnlyUpdated++;
       } else {
         const entry = { ...entryToSave, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) };
         list.push(entry);
         added++;
+        if (newItem.autoOnly) autoOnlyAdded++;
       }
     });
 
     await chrome.storage.local.set({ savedLyrics: list });
     renderLibrary();
-    return { added, updated };
+    return { added, updated, autoOnlyAdded, autoOnlyUpdated };
+  }
+
+  // mergeLyrics 결과를 토스트 문자열로 변환
+  // 예: "+22 +1자동 / ±0" 또는 "+22 / ±3 +1자동"
+  function buildMergeToast(result) {
+    const normalAdded = result.added - result.autoOnlyAdded;
+    const normalUpdated = result.updated - result.autoOnlyUpdated;
+    const autoLabel = I18n.t('toast_auto_only_label') || '자동';
+
+    let addedStr = `+${normalAdded}`;
+    if (result.autoOnlyAdded > 0) addedStr += ` (+${result.autoOnlyAdded} ${autoLabel})`;
+
+    let updatedStr = `±${normalUpdated}`;
+    if (result.autoOnlyUpdated > 0) updatedStr += ` (±${result.autoOnlyUpdated} ${autoLabel})`;
+
+    return `✓ ${addedStr} / ${updatedStr}`;
   }
 
   // 간단한 CSV 파서 (줄바꿈이 포함된 따옴표 처리)
@@ -724,22 +763,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = els.btnReloadSheet;
     const origText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = '연동 중...';
+    btn.textContent = I18n.t('toast_sheet_loading');
     try {
       const response = await fetch(SheetParser.toExportUrl(url));
       if (response.ok) {
         const newLyrics = SheetParser.rowsToLyrics(SheetParser.parseCSV(await response.text()).slice(1));
         if (newLyrics.length > 0) {
           const result = await mergeLyrics(newLyrics);
-          showToast(`시트 연동 완료! (추가 ${result.added}개, 수정 ${result.updated}개)`);
+          showToast(buildMergeToast(result));
         } else {
-          showToast('시트에서 유효한 데이터를 찾을 수 없습니다.');
+          showToast(I18n.t('toast_sheet_no_data'));
         }
       } else {
-        showToast('스프레드시트에 접근할 수 없습니다. 공유 설정을 확인해주세요.');
+        showToast(I18n.t('toast_sheet_error'));
       }
     } catch (e) {
-      showToast('시트 데이터를 가져오는 중 오류가 발생했습니다.');
+      showToast(I18n.t('toast_sheet_load_error'));
       console.error(e);
     } finally {
       btn.disabled = false;
@@ -751,12 +790,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const s = await getSettings();
     const url = s.googleSheetUrl;
     if (!url) {
-      showToast('설정에서 구글 스프레드시트 URL을 먼저 입력해주세요.');
+      showToast(I18n.t('toast_no_sheet_url'));
       els.tabBtns[2].click();
       return;
     }
 
-    if (!(await showConfirm('구글 스프레드시트에서 데이터를 가져와 현재 목록에 병합하시겠습니까?'))) return;
+    if (!(await showConfirm(I18n.t('confirm_sheet_sync')))) return;
 
     await syncFromSheet(url);
     renderLibrary();
@@ -772,37 +811,57 @@ document.addEventListener('DOMContentLoaded', () => {
       const importedData = JSON.parse(text);
       if (Array.isArray(importedData)) {
         const result = await mergeLyrics(importedData);
-        showToast(`가져오기 완료! (추가 ${result.added}개, 수정 ${result.updated}개)`);
+        showToast(buildMergeToast(result));
       } else {
-        showToast('유효하지 않은 JSON 파일 형식입니다.');
+        showToast(I18n.t('toast_invalid_json'));
       }
     } catch (err) {
-      showToast('JSON 파일을 읽는 중 오류가 발생했습니다.');
+      showToast(I18n.t('toast_invalid_json_file'));
     }
     e.target.value = '';
   });
 
   els.btnExportSettings.addEventListener('click', async () => {
     const data = await getStorageData('settings', 'remotePosition', 'remoteMinimized');
-    // 내보내기 전 정리: false인 사이트 제거, fontFamily 제거
+    const exportData = { settings: {}, remotePosition: data.remotePosition, remoteMinimized: data.remoteMinimized };
     if (data.settings) {
-      const s = data.settings;
-      if (s.remoteEnabledSites) {
-        s.remoteEnabledSites = Object.fromEntries(
-          Object.entries(s.remoteEnabledSites).filter(([, v]) => v === true)
+      GENERAL_KEYS.forEach(k => {
+        if (data.settings[k] !== undefined) exportData.settings[k] = data.settings[k];
+      });
+      if (exportData.settings.remoteEnabledSites) {
+        exportData.settings.remoteEnabledSites = Object.fromEntries(
+          Object.entries(exportData.settings.remoteEnabledSites).filter(([, v]) => v === true)
         );
       }
-      delete s.fontFamily;
     }
-    const jsonStr = JSON.stringify(data, null, 2);
+    const jsonStr = JSON.stringify(exportData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'lyrics_settings.json';
+    a.download = 'lyrics_general_settings.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('설정 데이터를 내보냈습니다.');
+    showToast(I18n.t('toast_settings_exported'));
+  });
+
+  els.btnExportDesign.addEventListener('click', async () => {
+    const data = await getStorageData('settings', 'siteStates', 'overlayPosition', 'overlayPinPosition');
+    const exportData = { settings: {}, siteStates: data.siteStates, overlayPosition: data.overlayPosition, overlayPinPosition: data.overlayPinPosition };
+    if (data.settings) {
+      DESIGN_KEYS.forEach(k => {
+        if (data.settings[k] !== undefined) exportData.settings[k] = data.settings[k];
+      });
+    }
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lyrics_design_settings.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(I18n.t('toast_settings_exported'));
   });
 
   els.btnImportSettings.addEventListener('click', () => els.settingsJsonInput.click());
@@ -813,31 +872,57 @@ document.addEventListener('DOMContentLoaded', () => {
       const text = await readFileAsText(file);
       const importedData = JSON.parse(text);
       if (typeof importedData === 'object' && !Array.isArray(importedData)) {
-        // 기존 형식을 위한 호환성 (최상위가 settings 데이터인 경우)
-        let settingsToSave = importedData;
-        let positionData = null;
-        let minimizedData = null;
-
-        // 새로운 형식인 경우 (최상위에 settings, remotePosition 등이 있는 경우)
-        if (importedData.settings !== undefined) {
-          settingsToSave = importedData.settings;
-          positionData = importedData.remotePosition;
-          minimizedData = importedData.remoteMinimized;
-        }
-
-        const updates = { settings: { ...defaultSettings, ...settingsToSave } };
-        if (positionData !== undefined) updates.remotePosition = positionData;
-        if (minimizedData !== undefined) updates.remoteMinimized = minimizedData;
+        let settingsToSave = importedData.settings !== undefined ? importedData.settings : importedData;
+        const currentData = await getStorageData('settings');
+        const updates = { settings: { ...defaultSettings, ...(currentData.settings || {}) } };
+        GENERAL_KEYS.forEach(k => {
+          if (settingsToSave[k] !== undefined) updates.settings[k] = settingsToSave[k];
+        });
+        
+        if (importedData.remotePosition !== undefined) updates.remotePosition = importedData.remotePosition;
+        if (importedData.remoteMinimized !== undefined) updates.remoteMinimized = importedData.remoteMinimized;
 
         await chrome.storage.local.set(updates);
         await loadSettingsUI();
         await sendToContent({ type: 'UPDATE_STYLE', settings: updates.settings });
-        showToast('설정 데이터를 가져왔습니다.');
+        showToast(I18n.t('toast_settings_imported'));
       } else {
-        showToast('올바른 설정 형식이 아닙니다.');
+        showToast(I18n.t('toast_invalid_settings'));
       }
     } catch (err) {
-      showToast('올바른 JSON 파일이 아닙니다.');
+      showToast(I18n.t('toast_invalid_json_file'));
+    }
+    e.target.value = '';
+  });
+
+  els.btnImportDesign.addEventListener('click', () => els.designJsonInput.click());
+  els.designJsonInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await readFileAsText(file);
+      const importedData = JSON.parse(text);
+      if (typeof importedData === 'object' && !Array.isArray(importedData)) {
+        let settingsToSave = importedData.settings !== undefined ? importedData.settings : importedData;
+        const currentData = await getStorageData('settings');
+        const updates = { settings: { ...defaultSettings, ...(currentData.settings || {}) } };
+        DESIGN_KEYS.forEach(k => {
+          if (settingsToSave[k] !== undefined) updates.settings[k] = settingsToSave[k];
+        });
+        
+        if (importedData.siteStates !== undefined) updates.siteStates = importedData.siteStates;
+        if (importedData.overlayPosition !== undefined) updates.overlayPosition = importedData.overlayPosition;
+        if (importedData.overlayPinPosition !== undefined) updates.overlayPinPosition = importedData.overlayPinPosition;
+
+        await chrome.storage.local.set(updates);
+        await loadSettingsUI();
+        await sendToContent({ type: 'UPDATE_STYLE', settings: updates.settings });
+        showToast(I18n.t('toast_settings_imported'));
+      } else {
+        showToast(I18n.t('toast_invalid_settings'));
+      }
+    } catch (err) {
+      showToast(I18n.t('toast_invalid_json_file'));
     }
     e.target.value = '';
   });
@@ -896,7 +981,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (existing >= 0) {
-      const confirmMsg = `원문 기준 동일한 파일("${list[existing].name}")이 이미 존재합니다.\n새 파일("${name}")로 덮어쓰시겠습니까?`;
+      const confirmMsg = I18n.t('confirm_overwrite', [list[existing].name, name]);
       if (!(await showConfirm(confirmMsg))) {
         return false;
       }
@@ -924,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function removeFromLibrary(id) {
     const data = await getStorageData('savedLyrics');
     await chrome.storage.local.set({ savedLyrics: (data.savedLyrics || []).filter(l => l.id !== id) });
-    renderLibrary(); showToast('삭제됨');
+    renderLibrary(); showToast(I18n.t('toast_deleted'));
   }
 
   async function loadFromLibrary(item) {
@@ -934,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentLyricsData = { name, count: response.count, duration: response.duration, srtText: item.srtText, parsed: item.parsed };
       updatePlayerUI(); updateSyncDisplay(0);
       buildTimeline(item.srtText);
-      els.tabBtns[0].click(); showToast(`"${name}" 로드 완료`);
+      els.tabBtns[0].click(); showToast(`${I18n.t('toast_loaded_lyrics')}: "${name}"`);
     }
   }
 
@@ -942,15 +1027,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const chips = [];
     const lower = q.toLowerCase();
     if (!item.parsed) {
-      if (item.name.toLowerCase().includes(lower)) chips.push({ type: '파일명', value: item.name });
+      if (item.name.toLowerCase().includes(lower)) chips.push({ type: I18n.t('chip_filename'), value: item.name });
       return chips;
     }
-    if (item.parsed.index && item.parsed.index.includes(lower)) chips.push({ type: '번호', value: item.parsed.index });
-    if (item.parsed.artist && item.parsed.artist.toLowerCase().includes(lower)) chips.push({ type: '가수', value: item.parsed.artist });
-    if (item.parsed.title && item.parsed.title.toLowerCase().includes(lower)) chips.push({ type: '제목', value: item.parsed.title });
+    if (item.parsed.index && item.parsed.index.includes(lower)) chips.push({ type: I18n.t('chip_number'), value: item.parsed.index });
+    if (item.parsed.artist && item.parsed.artist.toLowerCase().includes(lower)) chips.push({ type: I18n.t('chip_artist'), value: item.parsed.artist });
+    if (item.parsed.title && item.parsed.title.toLowerCase().includes(lower)) chips.push({ type: I18n.t('chip_title'), value: item.parsed.title });
     if (item.parsed.keywords) {
       item.parsed.keywords.filter(k => k.toLowerCase().includes(lower))
-        .forEach(k => chips.push({ type: '키워드', value: k }));
+        .forEach(k => chips.push({ type: I18n.t('chip_keyword'), value: k }));
     }
     return chips;
   }
@@ -967,10 +1052,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function renderLibrary(query = '') {
     const data = await getStorageData('savedLyrics');
-    const allList = data.savedLyrics || [];
+    const allRaw = data.savedLyrics || [];
+
+    // autoOnly 가사는 목록/검색/곡 수에서 제외 (자동 감지로만 사용)
+    const allList = allRaw.filter(item => SheetParser.isManualVisible(item));
     let list = allList;
 
-    // 총 곡 수 표시 (검색 필터 전 전체 수)
+    // 총 곡 수 표시 (autoOnly 제외, 검색 필터 전)
     if (els.libraryCount) {
       els.libraryCount.textContent = allList.length;
     }
@@ -989,7 +1077,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (list.length === 0) {
-      els.libraryList.innerHTML = '<div class="library-empty"><span>📄</span><p>저장된 가사가 없습니다</p><p class="sub">SRT 파일을 추가해주세요</p></div>';
+      els.libraryList.innerHTML = `<div class="library-empty"><span>📄</span><p>${I18n.t('lib_empty')}</p><p class="sub">${I18n.t('lib_empty_hint')}</p></div>`;
       return;
     }
 
@@ -1032,7 +1120,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="library-item-name scroll-text-container"><span class="scroll-text-inner">${displayName}</span></div>
           ${chipsHtml ? `<div class="library-item-meta">${chipsHtml}</div>` : ''}
         </div>
-        <button class="library-item-delete" data-id="${item.id}" title="삭제">✕</button>
+        <button class="library-item-delete" data-id="${item.id}" title="${I18n.t('btn_delete')}">✕</button>
       </div>`;
     }).join('');
 
@@ -1072,65 +1160,103 @@ document.addEventListener('DOMContentLoaded', () => {
     pronFontSize: 18, pronColor: '#F5E6CC', showPronunciation: true,
     mainFontSize: 28, mainColor: '#FFFFFF',
     libraryDisplayLang: 'both',
-    textShadow: true, animation: 'fade',
+    textShadow: true, animation: 'fade', textAlign: 'center',
     googleSheetUrl: '',
     showEndNotice: true,
     showProgressBar: true,
-    remoteEnabledSites: {}
+    autoDetectSong: true,
+    pinColor: '#FFFFFF',
+    remoteEnabledSites: {},
+    remoteBtnLibrary: true, remoteBtnTimeline: true, remoteBtnArea: true,
+    remoteBtnPlayStop: true, remoteBtnSync: true
   };
+
+  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync'];
+  const DESIGN_KEYS = ['origFontSize', 'origColor', 'showOriginal', 'pronFontSize', 'pronColor', 'showPronunciation', 'mainFontSize', 'mainColor', 'bgColor', 'bgOpacity', 'bgBlur', 'textShadow', 'animation', 'textAlign', 'pinColor', 'fontFamily'];
 
   function getSettings() { return new Promise(resolve => { chrome.storage.local.get(['settings'], data => { resolve({ ...defaultSettings, ...(data.settings || {}) }); }); }); }
   function saveSettings(settings) { return chrome.storage.local.set({ settings }); }
 
-  async function loadSettingsUI() {
+  async function loadSettingsUI(keepToggleState = false, isInitialLoad = false) {
+    const tabs = await new Promise(resolve => chrome.tabs.query({ active: true, currentWindow: true }, resolve));
+    if (tabs[0] && tabs[0].url) {
+      try { popupCurrentHostname = new URL(tabs[0].url).hostname; } catch (e) { }
+    }
+    if (popupCurrentHostname) {
+      els.optCurrentSite.textContent = I18n.t('opt_current_site_prefix', [popupCurrentHostname]) || `Current Site (${popupCurrentHostname})`;
+    } else {
+      els.optCurrentSite.disabled = true;
+      els.designTargetSelect.value = 'global';
+    }
+
     const s = await getSettings();
-    els.origFontSize.value = s.origFontSize || 20;
-    els.origFontSizeValue.textContent = (s.origFontSize || 20) + 'px';
-    els.origColor.value = s.origColor || '#FFA800';
-    els.origColorValue.textContent = s.origColor || '#FFA800';
-    els.showOriginal.checked = s.showOriginal !== false;
-    els.pronFontSize.value = s.pronFontSize || 18;
-    els.pronFontSizeValue.textContent = (s.pronFontSize || 18) + 'px';
-    els.pronColor.value = s.pronColor || '#F5E6CC';
-    els.pronColorValue.textContent = s.pronColor || '#F5E6CC';
-    els.showPronunciation.checked = s.showPronunciation !== false;
-    els.mainFontSize.value = s.mainFontSize || 28;
-    els.mainFontSizeValue.textContent = (s.mainFontSize || 28) + 'px';
-    els.mainColor.value = s.mainColor || '#FFFFFF';
-    els.mainColorValue.textContent = s.mainColor || '#FFFFFF';
-    els.bgColor.value = s.bgColor;
-    els.bgColorValue.textContent = s.bgColor;
-    els.bgOpacity.value = Math.round((s.bgOpacity ?? 0.45) * 100);
-    els.bgOpacityValue.textContent = Math.round((s.bgOpacity ?? 0.45) * 100) + '%';
-    els.bgBlur.value = s.bgBlur ?? 4;
-    els.bgBlurValue.textContent = (s.bgBlur ?? 4) + 'px';
+    const siteDataList = await getStorageData('siteStates');
+    const allSiteStates = siteDataList.siteStates || {};
+    const mySiteState = allSiteStates[popupCurrentHostname] || {};
+
+    if (isInitialLoad && mySiteState.styleOverrides) {
+      els.designTargetSelect.value = 'site';
+    }
+
+    const isSiteMode = els.designTargetSelect.value === 'site';
+    els.siteOverrideToggleRow.style.display = isSiteMode ? 'flex' : 'none';
+    
+    if (!keepToggleState) {
+      els.useSiteOverride.checked = isSiteMode && !!mySiteState.styleOverrides;
+    }
+    const useOverride = isSiteMode && els.useSiteOverride.checked;
+
+    // 적용할 디자인 값 (사이트 덮어쓰기가 켜져 있으면 덮어쓰기 값 우선, 없으면 글로벌 설정 우선)
+    // 폼에는 편집 중인 데이터를 보여줘야 하므로 fallback 사용.
+    const d = useOverride ? { ...s, ...mySiteState.styleOverrides } : s;
+
+    els.origFontSize.value = d.origFontSize || 20;
+    els.origFontSizeValue.textContent = (d.origFontSize || 20) + 'px';
+    els.origColor.value = d.origColor || '#FFA800';
+    els.origColorValue.textContent = d.origColor || '#FFA800';
+    els.showOriginal.checked = d.showOriginal !== false;
+    els.pronFontSize.value = d.pronFontSize || 18;
+    els.pronFontSizeValue.textContent = (d.pronFontSize || 18) + 'px';
+    els.pronColor.value = d.pronColor || '#F5E6CC';
+    els.pronColorValue.textContent = d.pronColor || '#F5E6CC';
+    els.showPronunciation.checked = d.showPronunciation !== false;
+    els.mainFontSize.value = d.mainFontSize || 28;
+    els.mainFontSizeValue.textContent = (d.mainFontSize || 28) + 'px';
+    els.mainColor.value = d.mainColor || '#FFFFFF';
+    els.mainColorValue.textContent = d.mainColor || '#FFFFFF';
+    els.bgColor.value = d.bgColor || '#000000';
+    els.bgColorValue.textContent = d.bgColor || '#000000';
+    els.bgOpacity.value = Math.round((d.bgOpacity ?? 0.45) * 100);
+    els.bgOpacityValue.textContent = Math.round((d.bgOpacity ?? 0.45) * 100) + '%';
+    els.bgBlur.value = d.bgBlur ?? 4;
+    els.bgBlurValue.textContent = (d.bgBlur ?? 4) + 'px';
+    els.settingsAnimation.value = d.animation || 'fade';
+    els.settingsTextAlign.value = d.textAlign || 'center';
+    els.textShadow.checked = d.textShadow !== false;
+
     els.libraryDisplayLang.value = s.libraryDisplayLang || 'both';
-    els.settingsAnimation.value = s.animation || 'fade';
-    els.textShadow.checked = s.textShadow !== false;
     els.showEndNotice.checked = s.showEndNotice !== false;
     els.showProgressBar.checked = s.showProgressBar !== false;
+    els.autoDetectSong.checked = s.autoDetectSong !== false;
+    els.pinColor.value = s.pinColor || '#FFFFFF';
+    els.pinColorValue.textContent = s.pinColor || '#FFFFFF';
     els.remoteBtnLibrary.checked = s.remoteBtnLibrary !== false;
     els.remoteBtnTimeline.checked = s.remoteBtnTimeline !== false;
     els.remoteBtnArea.checked = s.remoteBtnArea !== false;
     els.remoteBtnPlayStop.checked = s.remoteBtnPlayStop !== false;
     els.remoteBtnSync.checked = s.remoteBtnSync !== false;
 
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      let hostname = '';
-      if (tabs[0] && tabs[0].url) {
-        try { hostname = new URL(tabs[0].url).hostname; } catch (e) { }
-      }
-      const sites = s.remoteEnabledSites || {};
-      const isEnabled = hostname ? sites[hostname] === true : false;
+    const sites = s.remoteEnabledSites || {};
+    const isEnabled = popupCurrentHostname ? sites[popupCurrentHostname] === true : false;
       els.btnToggleRemote.dataset.active = isEnabled ? 'true' : 'false';
       if (isEnabled) {
         els.btnToggleRemote.classList.add('active');
-        els.btnToggleRemote.textContent = '리모컨 ON';
+        els.btnToggleRemote.textContent = I18n.t('remote_on');
       } else {
         els.btnToggleRemote.classList.remove('active');
-        els.btnToggleRemote.textContent = '리모컨 OFF';
+        els.btnToggleRemote.textContent = I18n.t('remote_off');
       }
-    });
+
 
     if (els.googleSheetUrl) els.googleSheetUrl.value = s.googleSheetUrl || '';
   }
@@ -1143,6 +1269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     els.pronColor.addEventListener('input', () => { els.pronColorValue.textContent = els.pronColor.value; });
     els.mainColor.addEventListener('input', () => { els.mainColorValue.textContent = els.mainColor.value; });
     els.bgColor.addEventListener('input', () => { els.bgColorValue.textContent = els.bgColor.value; });
+    els.pinColor.addEventListener('input', () => { els.pinColorValue.textContent = els.pinColor.value; });
     els.bgOpacity.addEventListener('input', () => { els.bgOpacityValue.textContent = els.bgOpacity.value + '%'; });
     els.bgBlur.addEventListener('input', () => { els.bgBlurValue.textContent = els.bgBlur.value + 'px'; });
     els.libraryDisplayLang.addEventListener('change', () => {
@@ -1171,10 +1298,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (isActive) {
         els.btnToggleRemote.classList.add('active');
-        els.btnToggleRemote.textContent = '리모컨 ON';
+        els.btnToggleRemote.textContent = I18n.t('remote_on');
       } else {
         els.btnToggleRemote.classList.remove('active');
-        els.btnToggleRemote.textContent = '리모컨 OFF';
+        els.btnToggleRemote.textContent = I18n.t('remote_off');
       }
 
       chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
@@ -1191,31 +1318,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tabs[0]) {
           chrome.tabs.sendMessage(tabs[0].id, { type: 'UPDATE_STYLE', settings: s }).catch(() => { });
         }
-        showToast(isActive ? '현재 사이트 리모컨: ON' : '현재 사이트 리모컨: OFF');
+        showToast(isActive ? I18n.t('toast_site_remote_on') : I18n.t('toast_site_remote_off'));
       });
+    });
+    
+    // 디자인 적용 대상 선택 및 덮어쓰기 토글 시 UI 리로드
+    els.designTargetSelect.addEventListener('change', () => {
+      loadSettingsUI(false);
+    });
+    els.useSiteOverride.addEventListener('change', () => {
+      loadSettingsUI(true);
     });
   }
 
   els.btnSaveSettings.addEventListener('click', async () => {
     const s = await getSettings();
-    // false인 사이트는 저장하지 않음 (ON인 사이트만 유지)
     const enabledSites = Object.fromEntries(
       Object.entries(s.remoteEnabledSites || {}).filter(([, v]) => v === true)
     );
-    const settings = {
-      origFontSize: parseInt(els.origFontSize.value), origColor: els.origColor.value,
-      showOriginal: els.showOriginal.checked,
-      pronFontSize: parseInt(els.pronFontSize.value), pronColor: els.pronColor.value,
-      showPronunciation: els.showPronunciation.checked,
-      mainFontSize: parseInt(els.mainFontSize.value), mainColor: els.mainColor.value,
-      bgColor: els.bgColor.value, bgOpacity: parseInt(els.bgOpacity.value) / 100,
-      bgBlur: parseInt(els.bgBlur.value),
+    
+    const nonDesignSettings = {
       libraryDisplayLang: els.libraryDisplayLang.value,
-      animation: els.settingsAnimation.value,
-      textShadow: els.textShadow.checked,
       googleSheetUrl: els.googleSheetUrl ? els.googleSheetUrl.value.trim() : '',
       showEndNotice: els.showEndNotice.checked,
       showProgressBar: els.showProgressBar.checked,
+      autoDetectSong: els.autoDetectSong.checked,
       remoteBtnLibrary: els.remoteBtnLibrary.checked,
       remoteBtnTimeline: els.remoteBtnTimeline.checked,
       remoteBtnArea: els.remoteBtnArea.checked,
@@ -1223,18 +1350,89 @@ document.addEventListener('DOMContentLoaded', () => {
       remoteBtnSync: els.remoteBtnSync.checked,
       remoteEnabledSites: enabledSites
     };
-    await saveSettings(settings);
-    await sendToContent({ type: 'UPDATE_STYLE', settings });
 
-    showToast('설정이 저장되었습니다');
+    await saveSettings({ ...s, ...nonDesignSettings });
+    await sendToContent({ type: 'UPDATE_STYLE' });
+    showToast(I18n.t('toast_settings_saved'));
+  });
+
+  els.btnSaveDesign.addEventListener('click', async () => {
+    const s = await getSettings();
+    
+    const designSettings = {
+      origFontSize: parseInt(els.origFontSize.value), origColor: els.origColor.value,
+      showOriginal: els.showOriginal.checked,
+      pronFontSize: parseInt(els.pronFontSize.value), pronColor: els.pronColor.value,
+      showPronunciation: els.showPronunciation.checked,
+      mainFontSize: parseInt(els.mainFontSize.value), mainColor: els.mainColor.value,
+      bgColor: els.bgColor.value, bgOpacity: parseInt(els.bgOpacity.value) / 100,
+      bgBlur: parseInt(els.bgBlur.value),
+      animation: els.settingsAnimation.value,
+      textAlign: els.settingsTextAlign.value,
+      textShadow: els.textShadow.checked,
+      pinColor: els.pinColor.value
+    };
+
+    const isSiteMode = els.designTargetSelect.value === 'site';
+    const useOverride = els.useSiteOverride.checked;
+    
+    if (isSiteMode && popupCurrentHostname) {
+      const siteDataList = await getStorageData('siteStates');
+      const allSiteStates = siteDataList.siteStates || {};
+      const mySiteState = allSiteStates[popupCurrentHostname] || {};
+      
+      if (useOverride) {
+        mySiteState.styleOverrides = designSettings;
+      } else {
+        delete mySiteState.styleOverrides;
+      }
+      allSiteStates[popupCurrentHostname] = mySiteState;
+      await chrome.storage.local.set({ siteStates: allSiteStates });
+    } else {
+      await saveSettings({ ...s, ...designSettings });
+    }
+
+    await sendToContent({ type: 'UPDATE_STYLE' });
+    showToast(I18n.t('toast_settings_saved'));
   });
 
   els.btnResetSettings.addEventListener('click', async () => {
-    await saveSettings(defaultSettings);
+    const s = await getSettings();
+    const resetSettings = { ...s };
+    GENERAL_KEYS.forEach(k => { resetSettings[k] = defaultSettings[k]; });
+    await saveSettings(resetSettings);
     await loadSettingsUI();
-    await sendToContent({ type: 'UPDATE_STYLE', settings: defaultSettings });
-    showToast('기본값으로 복원되었습니다');
+    await sendToContent({ type: 'UPDATE_STYLE' });
+    showToast(I18n.t('toast_settings_reset'));
   });
+
+  els.btnResetDesign.addEventListener('click', async () => {
+    const s = await getSettings();
+    const resetSettings = { ...s };
+    DESIGN_KEYS.forEach(k => { resetSettings[k] = defaultSettings[k]; });
+    await saveSettings(resetSettings);
+
+    // 사이트 모드로 디자인을 적용 중이었다면 styleOverrides도 함께 초기화
+    const isSiteMode = els.designTargetSelect.value === 'site';
+    if (isSiteMode && popupCurrentHostname) {
+      const siteDataList = await getStorageData('siteStates');
+      const allSiteStates = siteDataList.siteStates || {};
+      const mySiteState = allSiteStates[popupCurrentHostname] || {};
+      delete mySiteState.styleOverrides;
+      allSiteStates[popupCurrentHostname] = mySiteState;
+      await chrome.storage.local.set({ siteStates: allSiteStates });
+    }
+
+    await loadSettingsUI();
+    await sendToContent({ type: 'UPDATE_STYLE' });
+    showToast(I18n.t('toast_settings_reset'));
+  });
+
+  if (els.btnOpenOptions) {
+    els.btnOpenOptions.addEventListener('click', () => {
+      chrome.runtime.openOptionsPage();
+    });
+  }
 
   // ============================================================
   // ============================================================
@@ -1247,13 +1445,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // 초기화 - 상태 복원
   // ============================================================
   async function init() {
+    // i18n 적용
+    I18n.applyToDOM();
+
     // 최초 실행 플래그 설정
     const data = await getStorageData('isInitialized');
     if (!data.isInitialized) {
       await chrome.storage.local.set({ isInitialized: true });
     }
 
-    await loadSettingsUI();
+    await loadSettingsUI(false, true);
     bindSettingsInputs();
 
     const libraryData = await getStorageData('savedLyrics');
@@ -1267,21 +1468,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const status = await sendToContent({ type: 'GET_STATUS' });
 
     if (status?.hasLyrics) {
-      const stored = await getStorageData('currentTrack');
-      if (stored.currentTrack) {
+      // 현재 활성 탭의 사이트별 currentTrack 우선, 없으면 전역 fallback
+      const stored = await getStorageData('siteStates', 'currentTrack');
+      const allSiteStates = stored.siteStates || {};
+      const siteTrack = popupCurrentHostname && allSiteStates[popupCurrentHostname]
+        ? allSiteStates[popupCurrentHostname].currentTrack
+        : null;
+      const track = siteTrack || stored.currentTrack;
+
+      if (track) {
         currentLyricsData = {
-          name: stored.currentTrack.name || status.trackName || '로드된 가사',
-          count: status.lyricCount || stored.currentTrack.count,
-          duration: status.totalDuration || stored.currentTrack.duration,
-          srtText: stored.currentTrack.srtText
+          name: track.name || status.trackName || I18n.t('toast_loaded_lyrics'),
+          count: status.lyricCount || track.count,
+          duration: status.totalDuration || track.duration,
+          srtText: track.srtText
         };
         // 타임라인 복원
-        if (stored.currentTrack.srtText) {
-          buildTimeline(stored.currentTrack.srtText);
+        if (track.srtText) {
+          buildTimeline(track.srtText);
         }
       } else {
         currentLyricsData = {
-          name: status.trackName || '로드된 가사',
+          name: status.trackName || I18n.t('toast_loaded_lyrics'),
           count: status.lyricCount,
           duration: status.totalDuration,
           srtText: null
