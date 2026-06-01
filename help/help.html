@@ -216,6 +216,65 @@
     .lyric-preview .l-pron { font-size: 12px; color: #F5E6CC; }
     .lyric-preview .l-main { font-size: 22px; font-weight: 700; color: #fff; margin-top: 2px; }
 
+    /* ── 시트 미리보기 테이블 ── */
+    .sheet-preview {
+      overflow-x: auto;
+      margin: 10px 0 6px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .sheet-preview table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      white-space: nowrap;
+    }
+    .sheet-preview th {
+      background: var(--bg3);
+      color: var(--accent);
+      font-weight: 700;
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+    .sheet-preview th:last-child { border-right: none; }
+    .sheet-preview td {
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      border-right: 1px solid var(--border);
+      color: var(--muted);
+      vertical-align: top;
+    }
+    .sheet-preview td:last-child { border-right: none; }
+    .sheet-preview tr:last-child td { border-bottom: none; }
+    .sheet-preview tr:hover td { background: rgba(255,255,255,0.02); }
+    .sheet-preview .col-a { color: var(--text); font-weight: 500; min-width: 160px; }
+    .sheet-preview .col-b { color: var(--dim); font-size: 10.5px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; min-width: 140px; }
+    .sheet-preview .col-c { color: var(--muted); min-width: 100px; }
+    .sheet-preview .col-d { text-align: center; min-width: 70px; }
+    .sheet-preview .badge-auto {
+      display: inline-block;
+      background: rgba(255,85,0,0.15);
+      border: 1px solid rgba(255,85,0,0.4);
+      color: #FF5500;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .sheet-col-desc {
+      display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 4px;
+    }
+    .sheet-col-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 5px; padding: 3px 8px;
+      font-size: 11.5px; color: var(--muted);
+    }
+    .sheet-col-badge b { color: var(--accent); font-size: 12px; }
+
     /* ── 푸터 ── */
     footer {
       text-align: center; color: var(--dim); font-size: 12px;
@@ -286,18 +345,29 @@
     </div>
 
     <div class="sub">
-      <div class="sub-title">⚙️ 설정 탭</div>
+      <div class="sub-title">⚙️ 설정 탭 (일반)</div>
       <ul class="setting-list">
-        <li><span class="setting-key">원문 / 발음 / 한국어</span> 각 줄의 표시 여부, 폰트 크기, 색상 개별 설정</li>
-        <li><span class="setting-key">배경</span> 배경색, 투명도(0~100%), 블러 강도</li>
-        <li><span class="setting-key">위치 지정</span> 화면을 자유롭게 드래그하거나 <strong>영역 선택 🎯</strong>으로 특정 영역(예: 유튜브 플레이어)에 고정</li>
-        <li><span class="setting-key">애니메이션</span> 페이드 / 슬라이드 / 없음</li>
-        <li><span class="setting-key">텍스트 외곽선</span> 글자에 외곽선(drop shadow) 적용 여부</li>
         <li><span class="setting-key">곡 종료 알림</span> 마지막 가사 이후 <em>🎵 Finish 🎵</em> 알림 표시</li>
         <li><span class="setting-key">진행 바</span> 브라우저 하단에 재생 위치 표시 바 표시 여부</li>
+        <li><span class="setting-key">노래 자동 감지</span> SoundCloud 등에서 재생 중인 곡을 자동으로 감지해 가사를 로드하고 동기화. (기본값: 켜짐)</li>
         <li><span class="setting-key">리모컨 버튼</span> 플로팅 리모컨에 표시할 버튼 개별 선택 (라이브러리·타임라인·영역 선택·재생/정지·싱크 조절)</li>
         <li><span class="setting-key">가수/제목 표시</span> 라이브러리 및 플레이어에서 이름 표시 방식: 원문+한국어 / 원문 우선 / 한국어 우선</li>
         <li><span class="setting-key">구글 시트 URL</span> 시트 연동에 사용할 스프레드시트 주소</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎨 디자인 탭</div>
+      <ul class="setting-list">
+        <li><span class="setting-key">원문 / 발음 / 한국어</span> 각 줄의 표시 여부, 폰트 크기, 색상 개별 설정</li>
+        <li><span class="setting-key">배경</span> 배경색, 투명도(0~100%), 블러 강도</li>
+        <li><span class="setting-key">애니메이션</span> 페이드 / 슬라이드 / 없음</li>
+        <li><span class="setting-key">텍스트 외곽선</span> 글자에 외곽선(drop shadow) 적용 여부</li>
+        <li><span class="setting-key">정렬 방향</span> 가사창 및 텍스트 정렬: 왼쪽 / 가운데 / 오른쪽</li>
+        <li><span class="setting-key">페이지 고정(Pin)</span> 가사창을 페이지 좌표에 고정 — 스크롤해도 위치 유지. 가사창에 마우스를 올리면 나타나는 📌 핀 버튼으로도 토글 가능</li>
+        <li><span class="setting-key">핀 색상</span> 핀 아이콘 색상 설정 (배경색에 따라 조절)</li>
+        <li><span class="setting-key">영역 선택 🎯</span> 화면을 자유롭게 드래그하거나 특정 영역(예: 유튜브 플레이어)에 가사창 위치 지정</li>
+        <li><span class="setting-key">사이트별 디자인</span> '현재 사이트'를 선택하고 저장하면 해당 사이트에만 다른 디자인을 적용할 수 있음</li>
       </ul>
     </div>
   </div>
@@ -386,13 +456,38 @@
 
     <div class="sub">
       <div class="sub-title">📋 시트 열 구성</div>
-      <ul>
-        <li><strong>A열:</strong> 곡 이름 (아티스트 - 제목 형식 권장)</li>
-        <li><strong>B열:</strong> SRT 전체 텍스트</li>
-        <li><strong>C열:</strong> 키워드 (쉼표로 구분, 선택 사항) — 라이브러리 검색에 활용됨</li>
-        <li><strong>D열:</strong> Auto Only (선택 사항) — <code>1</code>을 입력하면 해당 가사는 라이브러리 목록·검색·곡 수에 표시되지 않고, 사운드클라우드 등 <strong>자동 감지로만</strong> 불러와 표시됩니다. 비워두면 일반 가사로 모든 곳에서 사용 가능</li>
+      <div class="sheet-col-desc">
+        <span class="sheet-col-badge"><b>A</b> 곡 이름</span>
+        <span class="sheet-col-badge"><b>B</b> SRT 텍스트</span>
+        <span class="sheet-col-badge"><b>C</b> 키워드 (선택)</span>
+        <span class="sheet-col-badge"><b>D</b> Auto Only (선택)</span>
+      </div>
+      <div class="sheet-preview">
+        <table>
+          <thead>
+            <tr><th>A — 곡 이름</th><th>B — SRT 텍스트</th><th>C — 키워드</th><th>D — Auto Only</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="col-a">Mirai Sounds - 夕暮れの詩</td>
+              <td class="col-b">1&#10;00:00:03,000 --> …&#10;夕暮れの詩\N저녁노을의 시</td>
+              <td class="col-c">미라이, 유구레</td>
+              <td class="col-d"></td>
+            </tr>
+            <tr>
+              <td class="col-a">Nova Drift - Starfall</td>
+              <td class="col-b">1&#10;00:00:01,000 --> …&#10;가사 텍스트</td>
+              <td class="col-c">키워드</td>
+              <td class="col-d"><span class="badge-auto">1</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ul style="margin-top:8px;">
+        <li><strong>D열이 비어있으면</strong> 일반 가사 — 라이브러리 목록·검색·곡 수 모두 표시</li>
+        <li><strong>D열에 <code>1</code></strong>을 입력하면 Auto Only — 목록·검색에는 숨겨지고 <strong>자동 감지로만</strong> 로드됨 (SoundCloud 등)</li>
       </ul>
-      <div class="tip"><strong>💡 팁:</strong> 라이브러리 탭의 <strong>시트 양식 복사</strong> 버튼을 누르면 현재 저장된 모든 가사가 A·B·C 3열 형식으로 클립보드에 복사됩니다. 시트에 <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>만 하면 됩니다.</div>
+      <div class="tip"><strong>💡 팁:</strong> 라이브러리 탭의 <strong>시트 양식 복사</strong> 버튼을 누르면 현재 저장된 모든 가사가 A·B·C·D 4열 형식으로 클립보드에 복사됩니다. 시트에 <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>만 하면 됩니다.</div>
     </div>
 
     <div class="sub">
@@ -420,11 +515,20 @@
     </div>
 
     <div class="sub">
-      <div class="sub-title">⚙️ 환경 설정 데이터</div>
+      <div class="sub-title">⚙️ 일반 설정 데이터</div>
       <ul>
-        <li><strong>내보내기:</strong> 디자인 설정(폰트·색상·애니메이션 등) + 리모컨 위치 + 리모컨 최소화 상태를 <code>.json</code>으로 저장</li>
-        <li><strong>가져오기:</strong> 저장해둔 설정 파일을 불러오면 모든 설정이 즉시 복원됨</li>
-        <li><strong>기본값 복원:</strong> 설정을 초기 기본값으로 리셋</li>
+        <li><strong>내보내기:</strong> 구글 시트 URL, 리모컨 버튼 구성 등 동작·연동 관련 설정을 <code>.json</code>으로 저장</li>
+        <li><strong>가져오기:</strong> 저장해둔 일반 설정 파일을 불러오면 해당 설정이 즉시 복원됨</li>
+        <li><strong>기본값 복원:</strong> 일반 설정을 초기 기본값으로 리셋</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎨 디자인 데이터</div>
+      <ul>
+        <li><strong>내보내기:</strong> 폰트·색상·애니메이션 등 시각 설정 + 사이트별 디자인 덮어쓰기 + 가사창 위치 정보를 <code>.json</code>으로 저장</li>
+        <li><strong>가져오기:</strong> 저장해둔 디자인 파일을 불러오면 모든 디자인 설정이 즉시 복원됨</li>
+        <li><strong>기본값 복원:</strong> 디자인 설정을 초기 기본값으로 리셋 (사이트별 덮어쓰기도 함께 초기화)</li>
       </ul>
     </div>
   </div>
@@ -479,18 +583,29 @@
     </div>
 
     <div class="sub">
-      <div class="sub-title">⚙️ Settings Tab</div>
+      <div class="sub-title">⚙️ Settings Tab (General)</div>
       <ul class="setting-list">
-        <li><span class="setting-key">Original / Pron / Korean</span> Show/hide, font size, and color for each lyric line independently</li>
-        <li><span class="setting-key">Background</span> Background color, opacity (0–100%), and blur intensity</li>
-        <li><span class="setting-key">Position</span> Drag freely on screen or use <strong>Select Area 🎯</strong> to pin lyrics to a specific region (e.g., the video player)</li>
-        <li><span class="setting-key">Animation</span> Fade / Slide / None</li>
-        <li><span class="setting-key">Text Shadow</span> Toggle outline/drop-shadow on lyric text</li>
         <li><span class="setting-key">End Notice</span> Show a <em>🎵 Finish 🎵</em> notification after the last lyric ends</li>
         <li><span class="setting-key">Progress Bar</span> Show a thin progress bar at the bottom of the browser viewport</li>
+        <li><span class="setting-key">Auto-Detect Song</span> Automatically detect the playing track on SoundCloud and sync lyrics. (Default: on)</li>
         <li><span class="setting-key">Remote Buttons</span> Choose which buttons appear on the floating remote (Library / Timeline / Area / Play-Stop / Sync)</li>
         <li><span class="setting-key">Display Language</span> How artist/title names are shown in library and player: Original+Korean / Original first / Korean first</li>
         <li><span class="setting-key">Sheet URL</span> Google Spreadsheet URL used for sheet sync</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎨 Design Tab</div>
+      <ul class="setting-list">
+        <li><span class="setting-key">Original / Pron / Korean</span> Show/hide, font size, and color for each lyric line independently</li>
+        <li><span class="setting-key">Background</span> Background color, opacity (0–100%), and blur intensity</li>
+        <li><span class="setting-key">Animation</span> Fade / Slide / None</li>
+        <li><span class="setting-key">Text Shadow</span> Toggle outline/drop-shadow on lyric text</li>
+        <li><span class="setting-key">Alignment</span> Lyric box and text alignment: Left / Center / Right</li>
+        <li><span class="setting-key">Pin to Page</span> Anchors the lyric box to page coordinates — it stays in place when you scroll. Also toggled by the 📌 pin button that appears when hovering over the lyric box</li>
+        <li><span class="setting-key">Pin Color</span> Color of the pin icon (adjust to match your background)</li>
+        <li><span class="setting-key">Select Area 🎯</span> Drag freely on screen or snap lyrics to a specific region (e.g., the video player)</li>
+        <li><span class="setting-key">Per-site Design</span> Select "Current Site" and save to apply a different design on that site only</li>
       </ul>
     </div>
   </div>
@@ -579,13 +694,38 @@ Second line</span></pre>
 
     <div class="sub">
       <div class="sub-title">📋 Sheet column layout</div>
-      <ul>
-        <li><strong>Column A:</strong> Track name (recommended format: Artist - Title)</li>
-        <li><strong>Column B:</strong> Full SRT text</li>
-        <li><strong>Column C:</strong> Keywords (comma-separated, optional) — used for library search</li>
-        <li><strong>Column D:</strong> Auto Only (optional) — set to <code>1</code> to hide the lyric from the library list, search, and song count; it's only loaded via <strong>auto-detection</strong> (e.g. SoundCloud). Leave empty for a normal lyric available everywhere</li>
+      <div class="sheet-col-desc">
+        <span class="sheet-col-badge"><b>A</b> Track Name</span>
+        <span class="sheet-col-badge"><b>B</b> SRT Text</span>
+        <span class="sheet-col-badge"><b>C</b> Keywords (opt.)</span>
+        <span class="sheet-col-badge"><b>D</b> Auto Only (opt.)</span>
+      </div>
+      <div class="sheet-preview">
+        <table>
+          <thead>
+            <tr><th>A — Track Name</th><th>B — SRT Text</th><th>C — Keywords</th><th>D — Auto Only</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="col-a">Mirai Sounds - 夕暮れの詩</td>
+              <td class="col-b">1&#10;00:00:03,000 --> …&#10;夕暮れの詩\NPoem of the evening glow</td>
+              <td class="col-c">mirai, yugure</td>
+              <td class="col-d"></td>
+            </tr>
+            <tr>
+              <td class="col-a">Nova Drift - Starfall</td>
+              <td class="col-b">1&#10;00:00:01,000 --> …&#10;lyric text here</td>
+              <td class="col-c">keyword</td>
+              <td class="col-d"><span class="badge-auto">1</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ul style="margin-top:8px;">
+        <li><strong>Column D empty</strong> — normal lyric, visible everywhere in the library</li>
+        <li><strong>Column D = <code>1</code></strong> — Auto Only: hidden from the list &amp; search, loaded only via <strong>auto-detection</strong> (e.g. SoundCloud)</li>
       </ul>
-      <div class="tip"><strong>💡 Tip:</strong> Click <strong>Copy Sheet Format</strong> in the Library tab to copy all saved lyrics to the clipboard in the correct 3-column format. Just paste (<span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>) into the sheet.</div>
+      <div class="tip"><strong>💡 Tip:</strong> Click <strong>Copy Sheet Format</strong> in the Library tab to copy all saved lyrics to the clipboard in the correct 4-column format. Just paste (<span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>) into the sheet.</div>
     </div>
 
     <div class="sub">
@@ -613,11 +753,20 @@ Second line</span></pre>
     </div>
 
     <div class="sub">
-      <div class="sub-title">⚙️ Settings Data</div>
+      <div class="sub-title">⚙️ General Settings Data</div>
       <ul>
-        <li><strong>Export:</strong> Saves design settings (font, color, animation, etc.) plus remote position and minimized state as a <code>.json</code> file</li>
-        <li><strong>Import:</strong> Loads a saved settings file to instantly restore all preferences</li>
-        <li><strong>Restore Defaults:</strong> Resets all settings back to factory defaults</li>
+        <li><strong>Export:</strong> Saves behavior/integration settings (sheet URL, remote button config, etc.) as a <code>.json</code> file</li>
+        <li><strong>Import:</strong> Loads a saved general settings file to instantly restore those preferences</li>
+        <li><strong>Restore Defaults:</strong> Resets general settings back to factory defaults</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎨 Design Data</div>
+      <ul>
+        <li><strong>Export:</strong> Saves visual settings (font, color, animation, etc.) + per-site design overrides + lyric box position as a <code>.json</code> file</li>
+        <li><strong>Import:</strong> Loads a saved design file to instantly restore all visual preferences</li>
+        <li><strong>Restore Defaults:</strong> Resets design settings back to factory defaults (per-site overrides are also cleared)</li>
       </ul>
     </div>
   </div>
@@ -672,18 +821,29 @@ Second line</span></pre>
     </div>
 
     <div class="sub">
-      <div class="sub-title">⚙️ 設定タブ</div>
+      <div class="sub-title">⚙️ 設定タブ（一般）</div>
       <ul class="setting-list">
-        <li><span class="setting-key">原文 / 読み仮名 / 韓国語</span> 各行の表示有無・フォントサイズ・色を個別設定</li>
-        <li><span class="setting-key">背景</span> 背景色・透明度(0〜100%)・ぼかし強度</li>
-        <li><span class="setting-key">位置指定</span> 画面上を自由にドラッグ、または <strong>エリア選択 🎯</strong> で特定領域（例: 動画プレイヤー）に固定</li>
-        <li><span class="setting-key">アニメーション</span> フェード / スライド / なし</li>
-        <li><span class="setting-key">テキスト縁取り</span> 歌詞テキストの輪郭線（ドロップシャドウ）の有無</li>
         <li><span class="setting-key">終了通知</span> 最後の歌詞が終わった後に <em>🎵 Finish 🎵</em> 通知を表示</li>
         <li><span class="setting-key">プログレスバー</span> ブラウザ下部に再生位置バーを表示するか</li>
+        <li><span class="setting-key">楽曲自動検出</span> SoundCloudなどで再生中の曲を自動検出して歌詞を読み込み・同期。（デフォルト: オン）</li>
         <li><span class="setting-key">リモコンボタン</span> フローティングリモコンに表示するボタンを個別選択（ライブラリ・タイムライン・エリア・再生停止・同期調整）</li>
         <li><span class="setting-key">表示言語</span> ライブラリ・プレイヤーでのアーティスト/タイトル表示方式: 原文+韓国語 / 原文優先 / 韓国語優先</li>
         <li><span class="setting-key">シートURL</span> シート同期に使用するGoogleスプレッドシートのURL</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎨 デザインタブ</div>
+      <ul class="setting-list">
+        <li><span class="setting-key">原文 / 読み仮名 / 韓国語</span> 各行の表示有無・フォントサイズ・色を個別設定</li>
+        <li><span class="setting-key">背景</span> 背景色・透明度(0〜100%)・ぼかし強度</li>
+        <li><span class="setting-key">アニメーション</span> フェード / スライド / なし</li>
+        <li><span class="setting-key">テキスト縁取り</span> 歌詞テキストの輪郭線（ドロップシャドウ）の有無</li>
+        <li><span class="setting-key">整列方向</span> 歌詞ボックスおよびテキストの整列: 左 / 中央 / 右</li>
+        <li><span class="setting-key">ページへ固定（Pin）</span> 歌詞ボックスをページ座標に固定 — スクロールしても位置をキープ。歌詞ボックスにマウスを乗せると表示される 📌 ピンボタンでもトグル可能</li>
+        <li><span class="setting-key">ピンの色</span> ピンアイコンの色（背景色に合わせて調整）</li>
+        <li><span class="setting-key">エリア選択 🎯</span> 画面上を自由にドラッグ、または特定領域（例: 動画プレイヤー）に歌詞ボックスを配置</li>
+        <li><span class="setting-key">サイト別デザイン</span> 「現在のサイト」を選択して保存すると、そのサイトだけに別のデザインを適用できる</li>
       </ul>
     </div>
   </div>
@@ -717,17 +877,17 @@ Second line</span></pre>
       <p style="margin-bottom:10px;"><code>\N</code> で区切られた行数に応じてスタイルが自動的に適用されます：</p>
       <ul style="margin-bottom:12px;">
         <li><strong>1行:</strong> メインスタイル（大きく・白色）で単独表示</li>
-        <li><strong>2行:</strong> 1行目 = <span style="color:#FFA800">原文</span>、2行目 = <span style="color:#fff">翻訳（大きく）</span></li>
-        <li><strong>3行:</strong> 1行目 = <span style="color:#FFA800">原文</span>、2行目 = <span style="color:#F5E6CC">読み仮名</span>、3行目 = <span style="color:#fff">翻訳（大きく）</span></li>
+        <li><strong>2行:</strong> 1行目 = <span style="color:#FFA800">英語歌詞</span>、2行目 = <span style="color:#fff">日本語訳（大きく）</span></li>
+        <li><strong>3行:</strong> 1行目 = <span style="color:#FFA800">英語歌詞</span>、2行目 = <span style="color:#F5E6CC">読み仮名</span>、3行目 = <span style="color:#fff">日本語訳（大きく）</span></li>
       </ul>
       <pre>1
 00:00:05,000 --> 00:00:10,000
-<span style="color:#FFA800">君の心へ続く長い一本道は</span>\N<span style="color:#F5E6CC">きみのこころへつづくながいいっぽんみちは</span>\N<span style="color:#fff">君の心へ続く 長い一本道は</span></pre>
+<span style="color:#FFA800">The long road leading to your heart</span>\N<span style="color:#F5E6CC">ざ ろんぐ ろーど りーでぃんぐ とぅ よあ はーと</span>\N<span style="color:#fff">君の心へ続く長い一本道は</span></pre>
       <p style="color:var(--muted);font-size:12px;margin-top:10px;">オーバーレイでの表示例：</p>
       <div class="lyric-preview">
-        <span class="l-orig">君の心へ続く長い一本道は</span>
-        <span class="l-pron">きみのこころへつづくながいいっぽんみちは</span>
-        <span class="l-main">君の心へ続く 長い一本道は</span>
+        <span class="l-orig">The long road leading to your heart</span>
+        <span class="l-pron">ざ ろんぐ ろーど りーでぃんぐ とぅ よあ はーと</span>
+        <span class="l-main">君の心へ続く長い一本道は</span>
       </div>
     </div>
   </div>
@@ -772,13 +932,38 @@ Second line</span></pre>
 
     <div class="sub">
       <div class="sub-title">📋 シートの列構成</div>
-      <ul>
-        <li><strong>A列:</strong> 曲名（推奨形式: アーティスト - タイトル）</li>
-        <li><strong>B列:</strong> SRT全文</li>
-        <li><strong>C列:</strong> キーワード（カンマ区切り、任意）— ライブラリ検索で使用</li>
-        <li><strong>D列:</strong> Auto Only（任意）— <code>1</code> を入力すると、その歌詞はライブラリ一覧・検索・曲数に表示されず、SoundCloud などの<strong>自動検出でのみ</strong>読み込まれます。空欄なら通常の歌詞としてどこでも利用可能</li>
+      <div class="sheet-col-desc">
+        <span class="sheet-col-badge"><b>A</b> 曲名</span>
+        <span class="sheet-col-badge"><b>B</b> SRTテキスト</span>
+        <span class="sheet-col-badge"><b>C</b> キーワード（任意）</span>
+        <span class="sheet-col-badge"><b>D</b> Auto Only（任意）</span>
+      </div>
+      <div class="sheet-preview">
+        <table>
+          <thead>
+            <tr><th>A — 曲名</th><th>B — SRTテキスト</th><th>C — キーワード</th><th>D — Auto Only</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="col-a">Mirai Sounds - 夕暮れの詩</td>
+              <td class="col-b">1&#10;00:00:03,000 --> …&#10;夕暮れの詩\Nゆうぐれのうた</td>
+              <td class="col-c">みらい、ゆうぐれ</td>
+              <td class="col-d"></td>
+            </tr>
+            <tr>
+              <td class="col-a">Nova Drift - Starfall</td>
+              <td class="col-b">1&#10;00:00:01,000 --> …&#10;歌詞テキスト</td>
+              <td class="col-c">キーワード</td>
+              <td class="col-d"><span class="badge-auto">1</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ul style="margin-top:8px;">
+        <li><strong>D列が空欄</strong> — 通常の歌詞、ライブラリ一覧・検索・曲数すべてに表示</li>
+        <li><strong>D列に <code>1</code></strong> を入力 — Auto Only：一覧・検索には表示されず、<strong>自動検出でのみ</strong>読み込まれる（SoundCloud等）</li>
       </ul>
-      <div class="tip"><strong>💡 ヒント:</strong> ライブラリタブの <strong>シート形式コピー</strong> ボタンを押すと、保存済みの全歌詞がA・B・C列の3列形式でクリップボードにコピーされます。シートに <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span> で貼り付けるだけです。</div>
+      <div class="tip"><strong>💡 ヒント:</strong> ライブラリタブの <strong>シート形式コピー</strong> ボタンを押すと、保存済みの全歌詞がA・B・C・D列の4列形式でクリップボードにコピーされます。シートに <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span> で貼り付けるだけです。</div>
     </div>
 
     <div class="sub">
@@ -806,11 +991,20 @@ Second line</span></pre>
     </div>
 
     <div class="sub">
-      <div class="sub-title">⚙️ 設定データ</div>
+      <div class="sub-title">⚙️ 一般設定データ</div>
       <ul>
-        <li><strong>エクスポート:</strong> デザイン設定（フォント・色・アニメーション等）＋リモコン位置＋最小化状態を <code>.json</code> として保存</li>
-        <li><strong>インポート:</strong> 保存した設定ファイルを読み込むとすべての設定が即座に復元</li>
-        <li><strong>デフォルトに戻す:</strong> すべての設定を初期値にリセット</li>
+        <li><strong>エクスポート:</strong> シートURL・リモコンボタン構成などの動作・連携設定を <code>.json</code> として保存</li>
+        <li><strong>インポート:</strong> 保存した一般設定ファイルを読み込むと該当設定が即座に復元</li>
+        <li><strong>デフォルトに戻す:</strong> 一般設定を初期値にリセット</li>
+      </ul>
+    </div>
+
+    <div class="sub">
+      <div class="sub-title">🎨 デザインデータ</div>
+      <ul>
+        <li><strong>エクスポート:</strong> 視覚設定（フォント・色・アニメーション等）＋サイト別デザイン上書き＋歌詞ボックス位置を <code>.json</code> として保存</li>
+        <li><strong>インポート:</strong> 保存したデザインファイルを読み込むとすべてのデザイン設定が即座に復元</li>
+        <li><strong>デフォルトに戻す:</strong> デザイン設定を初期値にリセット（サイト別上書きも同時にクリア）</li>
       </ul>
     </div>
   </div>
