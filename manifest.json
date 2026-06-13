@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_ext_name__",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "SRT 파일 기반 싱크 가사를 화면 위에 오버레이로 표시합니다. 원문/발음/번역 3줄 표시",
   "default_locale": "en",
   "permissions": ["storage", "activeTab"],

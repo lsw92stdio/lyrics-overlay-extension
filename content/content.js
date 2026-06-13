@@ -31,10 +31,12 @@
     overlay: null,
     shadowRoot: null,
     trackName: '',
-    // 드래그 상태
+    // 드래그 상태 (시작 기준점 + 포인터 이동량 방식, 세로는 박스 바닥 기준)
     isDragging: false,
-    dragOffsetX: 0,
-    dragOffsetY: 0,
+    dragStartX: 0,
+    dragStartY: 0,
+    dragStartCenterX: 0,
+    dragStartBottomVp: 0,
     // 새로 추가된 상태
     lastElapsed: 0,
     hasJumpedBeforeStart: false,
@@ -51,19 +53,33 @@
 
   // 현재 호스트명 및 사이트별 상태 처리
   const currentHostname = window.location.hostname;
-  
-  chrome.storage.local.get(['siteStates'], (data) => {
-    if (data.siteStates && data.siteStates[currentHostname]) {
-      state.siteState = data.siteStates[currentHostname];
+
+  // 확장프로그램이 리로드/업데이트되면 페이지에 남은 옛 content script의
+  // chrome.runtime 컨텍스트가 무효화된다. 이 상태에서 chrome.* 호출은
+  // "Extension context invalidated" 에러를 던지므로, 호출 전에 유효성을 확인한다.
+  function extAlive() {
+    try {
+      return !!(chrome.runtime && chrome.runtime.id);
+    } catch (e) {
+      return false;
     }
-  });
+  }
+
+  if (extAlive()) {
+    chrome.storage.local.get(['siteStates'], (data) => {
+      if (data.siteStates && data.siteStates[currentHostname]) {
+        state.siteState = data.siteStates[currentHostname];
+      }
+    });
+  }
 
   function updateSiteState(updates) {
+    if (!extAlive()) return;
     chrome.storage.local.get(['siteStates'], (data) => {
       const states = data.siteStates || {};
       states[currentHostname] = { ...(states[currentHostname] || {}), ...updates };
       chrome.storage.local.set({ siteStates: states });
-      
+
       // Update local state immediately for sync
       state.siteState = states[currentHostname];
     });
@@ -362,6 +378,7 @@
   }
 
   async function autoSyncFromSheetIfEmpty(listEl) {
+    if (!extAlive()) return;
     const data = await new Promise(r => chrome.storage.local.get(['savedLyrics', 'settings'], r));
     const list = data.savedLyrics || [];
     const url = data.settings && data.settings.googleSheetUrl;
@@ -436,6 +453,7 @@
   }
 
   function loadRemoteLibrary(listEl, searchTerm = '') {
+    if (!extAlive()) return;
     chrome.storage.local.get(['savedLyrics'], (data) => {
       let list = data.savedLyrics || [];
 
@@ -573,6 +591,7 @@
   }
 
   function renderRemoteTimeline(listEl) {
+    if (!extAlive()) return;
     if (!state.lyrics || state.lyrics.length === 0) {
       listEl.innerHTML = `<div style="padding:12px;text-align:center;color:rgba(255,255,255,0.5);font-size:11px;">${chrome.i18n.getMessage('remote_no_lyrics')}</div>`;
       return;
@@ -1473,6 +1492,9 @@
       linesContainer.appendChild(div);
     });
 
+    // 새 내용으로 너비가 바뀐 뒤 중앙 정렬 중심을 다시 고정 (드리프트 방지)
+    reapplyAlignForContentChange();
+
     if (state.overlay.timelineList) {
       updateRemoteTimelineHighlight(entry);
     }
@@ -1650,11 +1672,14 @@
       e.preventDefault();
       state.isDragging = true;
 
+      // 드래그 시작 시점의 포인터 위치와 박스의 현재 위치를 기준점으로 저장한다.
+      // 박스는 bottom:0(아래 고정)이므로 세로 기준은 항상 '박스 바닥(bottom)'으로 통일한다.
+      // 이후 포인터 '이동량(delta)'만 더해 배치하므로 첫 프레임에 위치가 그대로 유지된다.
       const boxRect = box.getBoundingClientRect();
-      // 클릭 지점과 박스 중심의 오프셋
-      const centerX = boxRect.left + boxRect.width / 2;
-      state.dragOffsetX = e.clientX - centerX;
-      state.dragOffsetY = e.clientY - boxRect.top;
+      state.dragStartX = e.clientX;
+      state.dragStartY = e.clientY;
+      state.dragStartCenterX = boxRect.left + boxRect.width / 2;  // 뷰포트 기준 박스 중심 X
+      state.dragStartBottomVp = boxRect.bottom;                   // 뷰포트 기준 박스 바닥 Y
 
       box.classList.add('dragging');
     });
@@ -1663,28 +1688,32 @@
       if (!state.isDragging) return;
       e.preventDefault();
 
-      // centerX: 박스의 중심이 위치할 X좌표
-      let centerX = e.clientX - state.dragOffsetX;
-      let newY = e.clientY - state.dragOffsetY;
+      const dx = e.clientX - state.dragStartX;
+      const dy = e.clientY - state.dragStartY;
 
-      // 화면 경계 제한 (중심 기준)
-      const boxRect = box.getBoundingClientRect();
-      const halfW = boxRect.width / 2;
+      // 경계 제한에만 사용 (transform 영향 없는 레이아웃 크기)
+      const halfW = box.offsetWidth / 2;
+      const boxH = box.offsetHeight;
+
+      // 박스 중심 X = 시작 중심 + 가로 이동량
+      let centerX = state.dragStartCenterX + dx;
       centerX = Math.max(halfW, Math.min(centerX, window.innerWidth - halfW));
-      newY = Math.max(0, Math.min(newY, window.innerHeight - boxRect.height));
+
+      // 박스 바닥 Y(뷰포트) = 시작 바닥 + 세로 이동량. 바닥은 [boxH, innerHeight] 범위로 제한.
+      let bottomVp = state.dragStartBottomVp + dy;
+      bottomVp = Math.max(boxH, Math.min(bottomVp, window.innerHeight));
 
       if (isOverlayPinned()) {
-        // 고정 모드: 문서 좌표(top 기준, 스크롤 포함)로 배치 → 페이지와 함께 스크롤
+        // 고정 모드: container(높이 0)의 top = 박스 바닥 위치(문서 좌표)
         container.style.position = 'absolute';
-        container.style.top = (newY + window.scrollY) + 'px';
+        container.style.top = (bottomVp + window.scrollY) + 'px';
         container.style.bottom = 'auto';
         applyContainerAlign(container, centerX + window.scrollX);
       } else {
-        // 기본 모드: 뷰포트 하단 기준 (savePosition과 일관성 유지)
-        const bottomY = window.innerHeight - newY - boxRect.height;
+        // 기본 모드: container.bottom = 뷰포트 하단에서 박스 바닥까지 거리
         container.style.position = 'fixed';
         container.style.top = 'auto';
-        container.style.bottom = bottomY + 'px';
+        container.style.bottom = (window.innerHeight - bottomVp) + 'px';
         applyContainerAlign(container, centerX);
       }
     });
@@ -1712,9 +1741,11 @@
       bottomPercent: (window.innerHeight - boxRect.bottom) / window.innerHeight
     };
     if (isOverlayPinned()) {
-      // 고정 모드: 문서 좌표만 갱신 (뷰포트 비율은 스크롤 상태에 따라 왜곡되므로 건드리지 않음)
+      // 고정 모드: 박스 바닥(bottom)을 문서 좌표로 저장 (box가 bottom:0 → 바닥 기준 배치).
+      // docTop도 하위 호환을 위해 함께 저장.
       updateSiteState({
         overlayPinPosition: {
+          docBottom: boxRect.bottom + window.scrollY,
           docTop: boxRect.top + window.scrollY,
           docCenterX: boxRect.left + boxRect.width / 2 + window.scrollX
         }
@@ -1740,27 +1771,31 @@
       }
 
       if (pinned) {
-        // 고정 모드: 문서 좌표(top 기준)로 배치 → 페이지와 함께 스크롤
+        // 고정 모드: container(높이 0)의 top = 박스 바닥(docBottom) 문서 좌표 → 페이지와 함께 스크롤
         c.style.position = 'absolute';
-        let docTop, docCenterX;
-        if (pinPosData) {
-          docTop = pinPosData.docTop;
+        const boxH = state.overlay.box.offsetHeight;
+        let docBottom, docCenterX;
+        if (pinPosData && pinPosData.docBottom != null) {
+          docBottom = pinPosData.docBottom;
+          docCenterX = pinPosData.docCenterX;
+        } else if (pinPosData && pinPosData.docTop != null) {
+          // 하위 호환: 예전엔 docTop(박스 상단)을 저장했으므로 높이를 더해 바닥으로 환산
+          docBottom = pinPosData.docTop + boxH;
           docCenterX = pinPosData.docCenterX;
         } else if (posData) {
           // 고정 좌표가 없으면 저장된 뷰포트 비율 + 현재 스크롤로 환산
           const pos = posData;
           const centerX = (pos.xCenterPercent ? pos.xCenterPercent : pos.xPercent) * window.innerWidth;
-          const boxH = state.overlay.box.getBoundingClientRect().height;
-          const topVp = pos.bottomPercent !== undefined
-            ? (window.innerHeight - pos.bottomPercent * window.innerHeight) - boxH
-            : pos.yPercent * window.innerHeight;
-          docTop = topVp + window.scrollY;
+          const bottomVp = pos.bottomPercent !== undefined
+            ? (window.innerHeight - pos.bottomPercent * window.innerHeight)
+            : (pos.yPercent * window.innerHeight + boxH);
+          docBottom = bottomVp + window.scrollY;
           docCenterX = centerX + window.scrollX;
         } else {
           docCenterX = window.innerWidth / 2 + window.scrollX;
-          docTop = window.innerHeight - 100 + window.scrollY;
+          docBottom = window.innerHeight - 100 + window.scrollY;
         }
-        c.style.top = docTop + 'px';
+        c.style.top = docBottom + 'px';
         c.style.bottom = 'auto';
         applyContainerAlign(c, docCenterX);
         return;
@@ -1779,9 +1814,11 @@
           c.style.top = 'auto';
           c.style.bottom = bottomY + 'px';
         } else {
-          const y = pos.yPercent * window.innerHeight;
-          c.style.top = y + 'px';
-          c.style.bottom = 'auto';
+          // 하위 호환(yPercent=박스 상단): box가 bottom:0이므로 container.bottom 기준으로 환산
+          const topVp = pos.yPercent * window.innerHeight;
+          const boxH = state.overlay.box.offsetHeight;
+          c.style.top = 'auto';
+          c.style.bottom = (window.innerHeight - (topVp + boxH)) + 'px';
         }
         applyContainerAlign(c, centerX);
       } else {
@@ -1812,13 +1849,18 @@
     };
     const align = settings.textAlign || 'center';
 
+    // 진입 애니메이션(scale/translateY)이 적용 중일 때 getBoundingClientRect()는
+    // 변형된 크기를 반환해 너비가 출렁인다. offsetWidth는 transform 영향을 받지 않는
+    // 레이아웃 너비라 드래그/재배치 시 튐이 없다.
+    const boxW = box.offsetWidth || box.getBoundingClientRect().width || 0;
+    const halfW = boxW / 2;
+
+    // 가사 내용이 바뀌어 너비가 변해도 중앙을 유지할 수 있도록 마지막 중심 좌표를 캐시
+    state.overlay._alignCenterX = centerX;
+
     // container는 항상 전체 너비
     c.style.left = '0';
     c.style.right = '0';
-
-    // box의 현재 너비를 가져와서 중심 → 좌/우 끝 변환
-    const boxW = box.getBoundingClientRect().width || 0;
-    const halfW = boxW / 2;
 
     if (align === 'right') {
       // 우측 정렬: box의 오른쪽 끝 = centerX + halfW
@@ -1842,6 +1884,22 @@
     }
   }
 
+  // 가사 내용이 바뀌면 너비(max-content)가 변한다. 중앙 정렬은 left가 고정 픽셀이라
+  // 너비 변화 시 중심이 좌우로 드리프트한다("왔다갔다"). 내용 변경 후 캐시된 중심으로
+  // 다시 배치해 중심을 고정한다. (좌/우 정렬은 끝점이 고정이라 너비 변화에 안정적이므로 제외)
+  function reapplyAlignForContentChange() {
+    if (!state.overlay || state.isDragging) return;
+    const o = state.overlay;
+    if (o._alignCenterX == null) return;
+    const settings = {
+      ...(state.settings || {}),
+      ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
+    };
+    const align = settings.textAlign || 'center';
+    if (align !== 'center') return;
+    applyContainerAlign(o.container, o._alignCenterX);
+  }
+
   // 가사창의 핀 버튼으로 고정 on/off 토글. 현재 보이는 위치를 그대로 유지한다.
   function togglePinFromOverlay() {
     const willPin = !state.siteState.isPinned;
@@ -1850,8 +1908,9 @@
     if (state.overlay) {
       const boxRect = state.overlay.box.getBoundingClientRect();
       if (willPin) {
-        // 켤 때: 현재 화면 위치를 문서 좌표로 저장 → 그 자리에 고정
+        // 켤 때: 현재 화면 위치(박스 바닥 기준)를 문서 좌표로 저장 → 그 자리에 고정
         updates.overlayPinPosition = {
+          docBottom: boxRect.bottom + window.scrollY,
           docTop: boxRect.top + window.scrollY,
           docCenterX: boxRect.left + boxRect.width / 2 + window.scrollX
         };
@@ -2010,10 +2069,9 @@
         const c = state.overlay.container;
 
         if (isOverlayPinned()) {
-          // 고정 모드: 문서 좌표(top 기준)로 배치해야 함
-          const boxH = state.overlay.box.getBoundingClientRect().height;
+          // 고정 모드: container(높이 0)의 top = 박스 바닥 위치(문서 좌표)
           c.style.position = 'absolute';
-          c.style.top = `${bottomEdgeVp - boxH + window.scrollY}px`;
+          c.style.top = `${bottomEdgeVp + window.scrollY}px`;
           c.style.bottom = 'auto';
           applyContainerAlign(c, centerX + window.scrollX);
         } else {
