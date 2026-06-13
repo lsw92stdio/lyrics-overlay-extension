@@ -80,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
     showEndNotice: document.getElementById('showEndNotice'),
     showProgressBar: document.getElementById('showProgressBar'),
     autoDetectSong: document.getElementById('autoDetectSong'),
+    remotePanelAutoClose: document.getElementById('remotePanelAutoClose'),
+    remotePanelAutoCloseSec: document.getElementById('remotePanelAutoCloseSec'),
     pinColor: document.getElementById('pinColor'),
     pinColorValue: document.getElementById('pinColorValue'),
     btnToggleRemote: document.getElementById('btnToggleRemote'),
@@ -1168,10 +1170,11 @@ document.addEventListener('DOMContentLoaded', () => {
     pinColor: '#FFFFFF',
     remoteEnabledSites: {},
     remoteBtnLibrary: true, remoteBtnTimeline: true, remoteBtnArea: true,
-    remoteBtnPlayStop: true, remoteBtnSync: true
+    remoteBtnPlayStop: true, remoteBtnSync: true,
+    remotePanelAutoClose: true, remotePanelAutoCloseSec: 5
   };
 
-  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync'];
+  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync', 'remotePanelAutoClose', 'remotePanelAutoCloseSec'];
   const DESIGN_KEYS = ['origFontSize', 'origColor', 'showOriginal', 'pronFontSize', 'pronColor', 'showPronunciation', 'mainFontSize', 'mainColor', 'bgColor', 'bgOpacity', 'bgBlur', 'textShadow', 'animation', 'textAlign', 'pinColor', 'fontFamily'];
 
   function getSettings() { return new Promise(resolve => { chrome.storage.local.get(['settings'], data => { resolve({ ...defaultSettings, ...(data.settings || {}) }); }); }); }
@@ -1238,6 +1241,8 @@ document.addEventListener('DOMContentLoaded', () => {
     els.showEndNotice.checked = s.showEndNotice !== false;
     els.showProgressBar.checked = s.showProgressBar !== false;
     els.autoDetectSong.checked = s.autoDetectSong !== false;
+    if (els.remotePanelAutoClose) els.remotePanelAutoClose.checked = s.remotePanelAutoClose !== false;
+    if (els.remotePanelAutoCloseSec) els.remotePanelAutoCloseSec.value = s.remotePanelAutoCloseSec ?? 5;
     els.pinColor.value = s.pinColor || '#FFFFFF';
     els.pinColorValue.textContent = s.pinColor || '#FFFFFF';
     els.remoteBtnLibrary.checked = s.remoteBtnLibrary !== false;
@@ -1343,6 +1348,10 @@ document.addEventListener('DOMContentLoaded', () => {
       showEndNotice: els.showEndNotice.checked,
       showProgressBar: els.showProgressBar.checked,
       autoDetectSong: els.autoDetectSong.checked,
+      remotePanelAutoClose: els.remotePanelAutoClose ? els.remotePanelAutoClose.checked : true,
+      remotePanelAutoCloseSec: els.remotePanelAutoCloseSec
+        ? Math.max(1, parseInt(els.remotePanelAutoCloseSec.value, 10) || 5)
+        : 5,
       remoteBtnLibrary: els.remoteBtnLibrary.checked,
       remoteBtnTimeline: els.remoteBtnTimeline.checked,
       remoteBtnArea: els.remoteBtnArea.checked,
@@ -1351,9 +1360,18 @@ document.addEventListener('DOMContentLoaded', () => {
       remoteEnabledSites: enabledSites
     };
 
+    const prevUrl = (s.googleSheetUrl || '').trim();
+    const newUrl = nonDesignSettings.googleSheetUrl;
+
     await saveSettings({ ...s, ...nonDesignSettings });
     await sendToContent({ type: 'UPDATE_STYLE' });
     showToast(I18n.t('toast_settings_saved'));
+
+    // 시트 URL이 새로 추가되거나 변경되면 즉시 한 번 동기화
+    if (newUrl && newUrl !== prevUrl) {
+      await syncFromSheet(newUrl);
+      renderLibrary();
+    }
   });
 
   els.btnSaveDesign.addEventListener('click', async () => {

@@ -84,6 +84,8 @@
   "lbl_end_notice":   { "message": "Show End Notice" },
   "lbl_progress_bar": { "message": "Show Progress Bar" },
   "lbl_auto_detect": { "message": "Auto-detect Song (SoundCloud)" },
+  "lbl_panel_autoclose": { "message": "Auto-close Remote Panel" },
+  "lbl_panel_autoclose_sec": { "message": "Auto-close Delay (sec)" },
   "lbl_btn_library":  { "message": "Song List (🎵)" },
   "lbl_btn_timeline": { "message": "Timeline (📜)" },
   "lbl_btn_area":     { "message": "Area Select (🎯)" },

@@ -84,6 +84,8 @@
   "lbl_end_notice":   { "message": "곡 종료 알림 표시" },
   "lbl_progress_bar": { "message": "진행 바 표시" },
   "lbl_auto_detect": { "message": "노래 자동 감지 (SoundCloud)" },
+  "lbl_panel_autoclose": { "message": "리모컨 패널 자동 닫힘" },
+  "lbl_panel_autoclose_sec": { "message": "자동 닫힘 시간 (초)" },
   "lbl_btn_library":  { "message": "노래 목록 (🎵)" },
   "lbl_btn_timeline": { "message": "타임라인 (📜)" },
   "lbl_btn_area":     { "message": "영역 선택 (🎯)" },

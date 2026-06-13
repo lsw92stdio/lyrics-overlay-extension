@@ -84,6 +84,8 @@
   "lbl_end_notice":   { "message": "終了通知を表示" },
   "lbl_progress_bar": { "message": "プログレスバー表示" },
   "lbl_auto_detect": { "message": "曲の自動検出 (SoundCloud)" },
+  "lbl_panel_autoclose": { "message": "リモコンパネル自動クローズ" },
+  "lbl_panel_autoclose_sec": { "message": "自動クローズ時間 (秒)" },
   "lbl_btn_library":  { "message": "曲リスト (🎵)" },
   "lbl_btn_timeline": { "message": "タイムライン (📜)" },
   "lbl_btn_area":     { "message": "エリア選択 (🎯)" },

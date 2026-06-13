@@ -246,6 +246,33 @@
       }
     });
 
+    // ── 패널 자동 닫힘 (무동작 시) ──────────────────────────────
+    // 가사 목록/타임라인 패널을 열어두고 아무 동작 없이 일정 시간이 지나면 자동으로 닫는다.
+    // 설정으로 on/off 및 시간(초)을 지정. (기본: 켜짐, 5초)
+    let panelAutoCloseTimer = null;
+    function panelsOpen() {
+      return !libPanel.classList.contains('hidden') || !timelinePanel.classList.contains('hidden');
+    }
+    function clearPanelAutoClose() {
+      if (panelAutoCloseTimer) { clearTimeout(panelAutoCloseTimer); panelAutoCloseTimer = null; }
+    }
+    function schedulePanelAutoClose() {
+      clearPanelAutoClose();
+      const s = state.settings || {};
+      if (s.remotePanelAutoClose === false) return; // 꺼짐
+      if (!panelsOpen()) return;
+      const sec = Number(s.remotePanelAutoCloseSec);
+      const ms = (isFinite(sec) && sec > 0 ? sec : 5) * 1000;
+      panelAutoCloseTimer = setTimeout(() => {
+        libPanel.classList.add('hidden');
+        timelinePanel.classList.add('hidden');
+      }, ms);
+    }
+    // 리모컨 내 어떤 동작이든 발생하면 타이머를 리셋 (무동작 기준)
+    ['mousemove', 'mousedown', 'keydown', 'input', 'wheel', 'focusin'].forEach(ev => {
+      remote.addEventListener(ev, () => { if (panelsOpen()) schedulePanelAutoClose(); }, true);
+    });
+
     btnLib.addEventListener('click', () => {
       if (libPanel.classList.contains('hidden')) {
         searchInput.value = '';
@@ -256,13 +283,16 @@
           loadRemoteLibrary(libList, '');
           setTimeout(() => searchInput.focus(), 100);
         });
+        schedulePanelAutoClose();
       } else {
         libPanel.classList.add('hidden');
+        clearPanelAutoClose();
       }
     });
 
     btnLibClose.addEventListener('click', () => {
       libPanel.classList.add('hidden');
+      clearPanelAutoClose();
     });
 
     btnTimeline.addEventListener('click', () => {
@@ -271,13 +301,16 @@
         updatePanelPosition(remote, timelinePanel);
         timelinePanel.classList.remove('hidden');
         libPanel.classList.add('hidden');
+        schedulePanelAutoClose();
       } else {
         timelinePanel.classList.add('hidden');
+        clearPanelAutoClose();
       }
     });
 
     timelineClose.addEventListener('click', () => {
       timelinePanel.classList.add('hidden');
+      clearPanelAutoClose();
     });
 
     state.overlay.remote = remote;
@@ -582,12 +615,23 @@
       duration: SRTParser.getTotalDuration(parsed),
       srtText: item.srtText
     }});
-    
+
+    // 새 곡이므로 타임라인 갱신 + 스크롤 맨 위로
+    refreshRemoteTimelineForNewTrack();
+
     play();
   }
 
   function escapeHtml(str) {
     return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag]));
+  }
+
+  // 새 곡 로드 시 리모컨 타임라인을 새 가사로 다시 그리고 스크롤을 맨 위로 올린다.
+  // (이전 곡에서 아래로 스크롤된 상태가 남아 불편하던 문제 해결)
+  function refreshRemoteTimelineForNewTrack() {
+    if (!state.overlay || !state.overlay.timelineList) return;
+    renderRemoteTimeline(state.overlay.timelineList);
+    state.overlay.timelineList.scrollTop = 0;
   }
 
   function renderRemoteTimeline(listEl) {
@@ -1296,6 +1340,12 @@
     box.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${bgOpacity})`;
     box.style.backdropFilter = `blur(${bgBlur}px)`;
     box.style.webkitBackdropFilter = `blur(${bgBlur}px)`;
+
+    // 배경 투명도 0% + 블러 0px이면 테두리/그림자까지 제거해 완전 투명하게.
+    // (그렇지 않으면 외곽선·그림자가 남아 완전 투명이 불가능)
+    const fullyTransparent = bgOpacity <= 0 && bgBlur <= 0;
+    box.style.border = fullyTransparent ? 'none' : '';
+    box.style.boxShadow = fullyTransparent ? 'none' : '';
 
     if (settings.fontFamily) {
       container.style.fontFamily = settings.fontFamily;
@@ -2149,8 +2199,10 @@
           duration: SRTParser.getTotalDuration(parsed),
           srtText: message.srtText
         }});
-        sendResponse({ 
-          success: true, 
+        // 새 곡이므로 타임라인 갱신 + 스크롤 맨 위로
+        refreshRemoteTimelineForNewTrack();
+        sendResponse({
+          success: true,
           count: parsed.length,
           duration: SRTParser.getTotalDuration(parsed)
         });
@@ -2492,8 +2544,72 @@
     log('SoundCloud 자동 싱크 활성화');
   }
 
+  // ============================================================
+  // 비디오 일시정지/재생 연동 (치지직 VOD + 유튜브)
+  //   영상을 멈추면 가사도 멈추고, 다시 재생하면 가사도 이어서 재생.
+  //   ※ 위치 동기화가 아니라 play/pause '상태'만 가사에 미러링한다.
+  //   ※ VOD에서만 동작(라이브는 duration이 무한 → 제외). 가사 재생 중일 때만 반응.
+  // ============================================================
+  function initVideoSync() {
+    const host = window.location.hostname;
+    const isChzzk = host.includes('chzzk.naver.com');
+    const isYouTube = host.includes('youtube.com');
+    if (!isChzzk && !isYouTube) return;
+
+    let boundVideo = null;
+
+    // 치지직 플레이어 클래스 우선, 없으면 일반 video
+    const findVideo = () =>
+      document.querySelector('video.webplayer-internal-video')
+      ?? document.querySelector('video');
+
+    // VOD 판별: 메타데이터 로드 후 duration이 유한한 양수일 때만 true (라이브=Infinity)
+    const isVodVideo = (v) => {
+      if (!v || v.readyState < 1) return false;
+      if (!isFinite(v.duration)) return false; // 라이브
+      return v.duration > 0;
+    };
+
+    // 영상 → 가사 단방향 미러링. 가드로 중복/오작동 방지.
+    const onVideoPause = () => {
+      // 가사가 재생 중(비일시정지)이고 VOD일 때만 일시정지
+      if (state.isPlaying && !state.isPaused && isVodVideo(boundVideo)) {
+        pause();
+      }
+    };
+    const onVideoPlay = () => {
+      // 가사가 일시정지 상태일 때만 이어서 재생 (재생 중에 play() 호출 시 처음부터 재시작되므로 가드)
+      if (state.isPlaying && state.isPaused && isVodVideo(boundVideo)) {
+        play();
+      }
+    };
+
+    const attach = (v) => {
+      if (v === boundVideo) return;
+      if (boundVideo) {
+        boundVideo.removeEventListener('pause', onVideoPause);
+        boundVideo.removeEventListener('play', onVideoPlay);
+      }
+      boundVideo = v;
+      if (v) {
+        v.addEventListener('pause', onVideoPause);
+        v.addEventListener('play', onVideoPlay);
+      }
+    };
+
+    // SPA 대응: 영상 엘리먼트가 새로 생성/교체될 수 있으므로 주기적으로 현재 video를 찾아 재부착
+    const intervalId = setInterval(() => {
+      if (!chrome.runtime || !chrome.runtime.id) { clearInterval(intervalId); return; }
+      try {
+        const v = findVideo();
+        if (v && v !== boundVideo) attach(v);
+      } catch (e) { /* 컨텍스트 일시 오류 등은 무시 */ }
+    }, 1000);
+  }
+
   // 초기화
   loadSettings();
   initSoundCloudSync();
+  initVideoSync();
 
 })();
