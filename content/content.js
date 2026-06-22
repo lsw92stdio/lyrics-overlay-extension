@@ -113,11 +113,21 @@
     const box = document.createElement('div');
     box.className = 'lyrics-box empty';
 
+    // 이전 가사 컨텍스트 (옵션 ON일 때만 채워짐)
+    const prevContext = document.createElement('div');
+    prevContext.className = 'lyrics-context lyrics-context-prev';
+
     // lines 컨테이너 - 동적으로 줄이 추가/제거됨
     const linesContainer = document.createElement('div');
     linesContainer.className = 'lyrics-lines';
 
+    // 다음 가사 컨텍스트 (옵션 ON일 때만 채워짐)
+    const nextContext = document.createElement('div');
+    nextContext.className = 'lyrics-context lyrics-context-next';
+
+    box.appendChild(prevContext);
     box.appendChild(linesContainer);
+    box.appendChild(nextContext);
 
     // 호버 시 나타나는 고정(핀) 토글 버튼
     const pinBtn = document.createElement('div');
@@ -144,6 +154,8 @@
       container,
       box,
       linesContainer,
+      prevContext,
+      nextContext,
       pinBtn,
       progressBar,
       progressFill,
@@ -432,7 +444,8 @@
         if (!isNaN(n) && n > maxIdx) maxIdx = n;
       });
       newLyrics.forEach(l => {
-        if (l.parsed && !l.parsed.index) {
+        // Auto Only는 번호 채번 제외 (수동 목록에서 숨겨지므로 번호 불필요)
+        if (l.parsed && !l.parsed.index && !l.autoOnly) {
           maxIdx++;
           l.parsed.index = String(maxIdx).padStart(4, '0');
         }
@@ -619,6 +632,10 @@
     // 새 곡이므로 타임라인 갱신 + 스크롤 맨 위로
     refreshRemoteTimelineForNewTrack();
 
+    // 새 곡의 최대 줄 수 기준으로 박스 높이 고정 재계산
+    recalcBoxDimensions();
+    reapplyAlignForContentChange();
+
     play();
   }
 
@@ -760,6 +777,25 @@
         border-color: rgba(0, 255, 163, 0.3);
       }
 
+      /* 이전/다음 가사 컨텍스트 - 메인보다 작고 채도/명도 낮게 */
+      .lyrics-context {
+        opacity: 0.5;
+        filter: saturate(0.55);
+        line-height: 1.25;
+        margin: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
+      /* 이전/다음 표시 ON일 때만 최대 줄 수 기준 높이를 확보해 크기 변동 방지 */
+      .lyrics-box.show-prev-context .lyrics-context-prev {
+        min-height: var(--lyrics-min-h-context, 0px);
+        margin-bottom: 6px;
+      }
+      .lyrics-box.show-next-context .lyrics-context-next {
+        min-height: var(--lyrics-min-h-context, 0px);
+        margin-top: 6px;
+      }
+
       /* 고정(핀) 토글 버튼 - 박스 모서리 안쪽에 심플하게, 호버 시 표시 */
       .lyrics-pin-btn {
         position: absolute;
@@ -792,6 +828,7 @@
         align-items: center;
         gap: 4px;
         pointer-events: none;
+        min-height: var(--lyrics-min-h-main, 0);
       }
 
       /* 원문 라인 */
@@ -1232,15 +1269,15 @@
 
 
       @keyframes lyricsFadeIn {
-        from { opacity: 0; transform: translateY(10px) scale(0.98); }
-        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; }
+        to { opacity: 1; }
       }
       @keyframes lyricsFadeOut {
-        from { opacity: 1; transform: translateY(0); }
-        to { opacity: 0; transform: translateY(-8px); }
+        from { opacity: 1; }
+        to { opacity: 0; }
       }
 
-      /* 슬라이드 애니메이션 */
+      /* 슬라이드 애니메이션 - 페이드와 구분되게 가로 이동 위주로 */
       .animation-slide .lyrics-box.entering {
         animation: lyricsSlideIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
       }
@@ -1248,12 +1285,12 @@
         animation: lyricsSlideOut 0.4s cubic-bezier(0.7,0,0.84,0) forwards;
       }
       @keyframes lyricsSlideIn {
-        from { opacity: 0; transform: translateY(30px) scale(0.95); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
+        from { opacity: 0; transform: translateX(-40px); }
+        to { opacity: 1; transform: translateX(0); }
       }
       @keyframes lyricsSlideOut {
-        from { opacity: 1; transform: translateY(0) scale(1); }
-        to { opacity: 0; transform: translateY(-30px) scale(0.95); }
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(40px); }
       }
 
       .animation-none .lyrics-box { transition: none; }
@@ -1292,6 +1329,13 @@
       .no-text-shadow .lyrics-line-solo {
         text-shadow: none !important;
       }
+
+      /* 텍스트 외곽선 굵기 (슬라이더) - 투명 배경 가독성용.
+         paint-order: stroke fill → 외곽선이 글자 뒤에 그려져 글자가 가려지지 않음. */
+      .lyrics-line-orig, .lyrics-line-pron, .lyrics-line-main, .lyrics-line-solo {
+        -webkit-text-stroke: var(--lyric-stroke, 0) rgba(0,0,0,0.95);
+        paint-order: stroke fill;
+      }
     `;
   }
 
@@ -1301,6 +1345,8 @@
   function applySettings(baseSettings) {
     if (!baseSettings) return;
     state.settings = baseSettings;
+    // 설정 변경 시 컨텍스트 재렌더 강제 (폰트/색/토글 즉시 반영)
+    state._lastContextSig = null;
 
     // 현재 사이트의 덮어쓰기 설정이 있으면 병합
     const settings = {
@@ -1367,6 +1413,15 @@
     } else {
       box.classList.remove('no-text-shadow');
     }
+
+    // 텍스트 외곽선 굵기 (0이면 없음). 박스에 CSS 변수로 지정 → 모든 줄에 적용.
+    const outlineWidth = Math.max(0, Number(settings.outlineWidth) || 0);
+    box.style.setProperty('--lyric-stroke', outlineWidth + 'px');
+
+    // 이전/다음 가사 표시 ON일 때 박스 가로/세로 크기 고정 재계산
+    recalcBoxDimensions();
+    // 너비 변경에 따른 중앙 정렬 위치 보정
+    reapplyAlignForContentChange();
 
     // 커스텀 CSS
     if (settings.customCSS) {
@@ -1495,52 +1550,13 @@
     void box.offsetWidth;
     box.classList.add('entering');
 
-    // 줄 렌더링
-    linesContainer.innerHTML = '';
-    const lineCount = entry.lines.length;
-    const s = {
-      ...state.settings,
-      ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
-    };
-    const showPron = s.showPronunciation !== false;
+    // 단일 엔트리 모드: 컨텍스트 블록은 비워 잔상 방지
+    if (state.overlay.prevContext) state.overlay.prevContext.innerHTML = '';
+    if (state.overlay.nextContext) state.overlay.nextContext.innerHTML = '';
+    linesContainer.classList.remove('context-gap');
 
-    // 줄 분류:
-    //   1줄: [solo]
-    //   2줄: [orig, main]
-    //   3줄: [orig, pron, main]
-    entry.lines.forEach((text, i) => {
-      // 3줄일 때 발음(index 1) 숨기기
-      if (lineCount === 3 && i === 1 && !showPron) return;
-      
-      // 2줄 이상일 때 원문(index 0) 숨기기
-      if (lineCount > 1 && i === 0 && s.showOriginal === false) return;
-
-      const div = document.createElement('div');
-
-      if (lineCount === 1) {
-        div.className = 'lyrics-line-solo';
-        div.style.fontSize = `${s.mainFontSize || 28}px`;
-        div.style.color = s.mainColor || '#FFFFFF';
-      } else if (i === lineCount - 1) {
-        // 마지막 줄: 한국어 번역 (메인)
-        div.className = 'lyrics-line-main';
-        div.style.fontSize = `${s.mainFontSize || 28}px`;
-        div.style.color = s.mainColor || '#FFFFFF';
-      } else if (lineCount === 3 && i === 1) {
-        // 3줄에서 2번째: 발음
-        div.className = 'lyrics-line-pron';
-        div.style.fontSize = `${s.pronFontSize || 18}px`;
-        div.style.color = s.pronColor || '#F5E6CC';
-      } else {
-        // 첫 번째 줄: 원문
-        div.className = 'lyrics-line-orig';
-        div.style.fontSize = `${s.origFontSize || 20}px`;
-        div.style.color = s.origColor || '#FFA800';
-      }
-
-      div.textContent = text;
-      linesContainer.appendChild(div);
-    });
+    // 현재 가사 줄 렌더링
+    appendEntryLines(linesContainer, entry, 1);
 
     // 새 내용으로 너비가 바뀐 뒤 중앙 정렬 중심을 다시 고정 (드리프트 방지)
     reapplyAlignForContentChange();
@@ -1548,6 +1564,228 @@
     if (state.overlay.timelineList) {
       updateRemoteTimelineHighlight(entry);
     }
+  }
+
+  // 줄 클래스별 line-height (CSS 값과 동기화, 높이 계산에 사용)
+  const LINE_STYLE = {
+    'lyrics-line-orig': { lineHeight: 1.4 },
+    'lyrics-line-pron': { lineHeight: 1.4 },
+    'lyrics-line-main': { lineHeight: 1.5 },
+    'lyrics-line-solo': { lineHeight: 1.5 }
+  };
+
+  // 엔트리의 줄들을 분류해 { text, className, fontSize, color }[] 로 반환.
+  //   1줄: [solo]
+  //   2줄: [orig, main]
+  //   3줄: [orig, pron, main]
+  function getLineSpecs(entry, s) {
+    if (!entry || !entry.lines) return [];
+    const lineCount = entry.lines.length;
+    const showPron = s.showPronunciation !== false;
+    const specs = [];
+
+    entry.lines.forEach((text, i) => {
+      // 3줄일 때 발음(index 1) 숨기기
+      if (lineCount === 3 && i === 1 && !showPron) return;
+
+      // 2줄 이상일 때 원문(index 0) 숨기기
+      if (lineCount > 1 && i === 0 && s.showOriginal === false) return;
+
+      let className, fontSize, color;
+      if (lineCount === 1) {
+        className = 'lyrics-line-solo';
+        fontSize = s.mainFontSize || 28;
+        color = s.mainColor || '#FFFFFF';
+      } else if (i === lineCount - 1) {
+        // 마지막 줄: 한국어 번역 (메인)
+        className = 'lyrics-line-main';
+        fontSize = s.mainFontSize || 28;
+        color = s.mainColor || '#FFFFFF';
+      } else if (lineCount === 3 && i === 1) {
+        // 3줄에서 2번째: 발음
+        className = 'lyrics-line-pron';
+        fontSize = s.pronFontSize || 18;
+        color = s.pronColor || '#F5E6CC';
+      } else {
+        // 첫 번째 줄: 원문
+        className = 'lyrics-line-orig';
+        fontSize = s.origFontSize || 20;
+        color = s.origColor || '#FFA800';
+      }
+
+      specs.push({ text, className, fontSize, color });
+    });
+    return specs;
+  }
+
+  // 엔트리의 줄들을 컨테이너에 렌더링한다. (updateDisplay / 컨텍스트 표시 공용)
+  //   scale: 폰트 크기 배율 (현재 가사 = 1, 이전/다음 = scale<1)
+  function appendEntryLines(container, entry, scale) {
+    container.innerHTML = '';
+    if (!entry || !entry.lines) return;
+    const s = {
+      ...state.settings,
+      ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
+    };
+    const k = scale || 1;
+
+    getLineSpecs(entry, s).forEach(spec => {
+      const div = document.createElement('div');
+      div.className = spec.className;
+      div.style.fontSize = `${spec.fontSize * k}px`;
+      div.style.color = spec.color;
+      div.textContent = spec.text;
+      container.appendChild(div);
+    });
+  }
+
+  // ============================================================
+  // 이전/다음 가사 컨텍스트 표시
+  // ============================================================
+  const GAP_BLANK_MS = 5000; // 이 시간 이상 비는 구간에서만 가운데를 비움
+
+  // 현재 시간 기준으로 이전/현재/다음 엔트리와 그 인덱스를 구한다.
+  //   활성 엔트리(t∈[start,end])가 있으면 그것이 current.
+  //   빈 구간이면:
+  //     - 간격이 GAP_BLANK_MS 미만이면 직전 가사를 가운데에 '유지'(깜빡임 방지)
+  //     - 간격이 GAP_BLANK_MS 이상이면 가운데를 비움(current=null)
+  //     - 마지막 가사 이후(다음 없음)도 직전 가사를 유지(종료 알림이 대체)
+  function findContextAtTime(entries, t) {
+    if (!entries || entries.length === 0) {
+      return { prevIdx: -1, currIdx: -1, nextIdx: -1 };
+    }
+    let currIdx = -1;
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (t >= entries[i].startTime && t <= entries[i].endTime) { currIdx = i; break; }
+    }
+    if (currIdx >= 0) {
+      return { prevIdx: currIdx - 1, currIdx, nextIdx: currIdx + 1 < entries.length ? currIdx + 1 : -1 };
+    }
+
+    // 빈 구간: 다음 엔트리 = 첫 startTime > t
+    let nextIdx = -1;
+    for (let i = 0; i < entries.length; i++) {
+      if (entries[i].startTime > t) { nextIdx = i; break; }
+    }
+    const prevIdx = nextIdx === -1 ? entries.length - 1 : nextIdx - 1;
+
+    // 첫 가사 이전(직전 없음): 가운데 비우고 다음만 예고
+    if (prevIdx < 0) {
+      return { prevIdx: -1, currIdx: -1, nextIdx };
+    }
+
+    const gapEnd = nextIdx >= 0 ? entries[nextIdx].startTime : Infinity;
+    const gapDur = gapEnd - entries[prevIdx].endTime;
+
+    // 짧은 간격 또는 마지막 가사 이후 → 직전 가사를 가운데에 유지
+    if (gapDur < GAP_BLANK_MS || nextIdx === -1) {
+      return { prevIdx: prevIdx - 1, currIdx: prevIdx, nextIdx };
+    }
+
+    // 긴 간격(간주 등) → 가운데 비움
+    return { prevIdx, currIdx: -1, nextIdx };
+  }
+
+  const CONTEXT_SCALE = 0.62; // 이전/다음 가사 폰트 배율
+
+  // 컨텍스트(이전/현재/다음) 표시 갱신. tick 루프에서 이전/다음 중 하나라도 ON일 때 사용.
+  function updateContextDisplay(t) {
+    if (!state.overlay) return;
+    const { box, linesContainer, prevContext, nextContext } = state.overlay;
+    const entries = state.lyrics;
+    const ctx = findContextAtTime(entries, t);
+
+    const s = {
+      ...state.settings,
+      ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
+    };
+    const showPrev = s.showPrevLyrics === true;
+    const showNext = s.showNextLyrics === true;
+
+    // 변경 없으면 재렌더 생략 (표시 플래그도 시그니처에 포함)
+    const sig = `${ctx.prevIdx}|${ctx.currIdx}|${ctx.nextIdx}|${showPrev ? 1 : 0}${showNext ? 1 : 0}`;
+    if (state._lastContextSig === sig) return;
+    state._lastContextSig = sig;
+
+    // 표시할 게 하나도 없으면 숨김
+    if (ctx.prevIdx < 0 && ctx.currIdx < 0 && ctx.nextIdx < 0) {
+      state.currentEntry = null;
+      box.classList.add('empty');
+      prevContext.innerHTML = '';
+      nextContext.innerHTML = '';
+      linesContainer.innerHTML = '';
+      linesContainer.classList.remove('context-gap');
+      return;
+    }
+
+    // 박스가 이미 보이는 상태였다면 진입 애니메이션을 재실행하지 않고 내용만 갱신
+    const wasHidden = box.classList.contains('empty') || box.classList.contains('exiting');
+    box.classList.remove('empty', 'exiting');
+    if (wasHidden) {
+      box.classList.remove('entering');
+      void box.offsetWidth;
+      box.classList.add('entering');
+    }
+
+    // 이전/다음 (축소) — 각각 설정에 따라 표시. 꺼진 쪽은 비움.
+    appendEntryLines(prevContext, (showPrev && ctx.prevIdx >= 0) ? entries[ctx.prevIdx] : null, CONTEXT_SCALE);
+    appendEntryLines(nextContext, (showNext && ctx.nextIdx >= 0) ? entries[ctx.nextIdx] : null, CONTEXT_SCALE);
+
+    // 현재 (메인). 빈 구간이면 가운데 비움 (빈 슬롯 높이만 확보)
+    if (ctx.currIdx >= 0) {
+      const cur = entries[ctx.currIdx];
+      state.currentEntry = cur;
+      linesContainer.classList.remove('context-gap');
+      appendEntryLines(linesContainer, cur, 1);
+      if (state.overlay.timelineList) updateRemoteTimelineHighlight(cur);
+    } else {
+      state.currentEntry = null;
+      linesContainer.innerHTML = '';
+      linesContainer.classList.add('context-gap');
+    }
+
+    reapplyAlignForContentChange();
+  }
+
+  // 이전/다음 가사 표시(showPrevLyrics/showNextLyrics) ON일 때만:
+  //   - 곡 전체에서 등장하는 최대 줄 수 기준으로 메인/컨텍스트 영역 높이를 확보
+  // OFF일 때는 이전(고정 전) 동작으로 되돌린다.
+  function recalcBoxDimensions() {
+    if (!state.overlay || !state.overlay.box) return;
+    const box = state.overlay.box;
+    const s = {
+      ...state.settings,
+      ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
+    };
+    const showPrev = s.showPrevLyrics === true;
+    const showNext = s.showNextLyrics === true;
+
+    if (!(showPrev || showNext) || !state.lyrics || state.lyrics.length === 0) {
+      box.style.removeProperty('width');
+      box.style.removeProperty('--lyrics-min-h-main');
+      box.style.removeProperty('--lyrics-min-h-context');
+      box.classList.remove('show-prev-context', 'show-next-context');
+      return;
+    }
+
+    box.classList.toggle('show-prev-context', showPrev);
+    box.classList.toggle('show-next-context', showNext);
+
+    let maxLines = 1;
+    state.lyrics.forEach(entry => {
+      const specs = getLineSpecs(entry, s);
+      if (specs.length > maxLines) maxLines = specs.length;
+    });
+    maxLines = Math.min(3, Math.max(1, maxLines));
+
+    // maxLines 줄 수에 해당하는 "형태"(클래스 구성)를 합성 엔트리로 얻어 높이 계산
+    const shapeSpecs = getLineSpecs({ lines: new Array(maxLines).fill('') }, s);
+    const gapTotal = 4 * Math.max(0, shapeSpecs.length - 1);
+    const heightMain = shapeSpecs.reduce((sum, sp) => sum + sp.fontSize * LINE_STYLE[sp.className].lineHeight, 0) + gapTotal;
+    const heightContext = shapeSpecs.reduce((sum, sp) => sum + sp.fontSize * CONTEXT_SCALE * LINE_STYLE[sp.className].lineHeight, 0) + gapTotal;
+
+    box.style.setProperty('--lyrics-min-h-main', heightMain + 'px');
+    box.style.setProperty('--lyrics-min-h-context', heightContext + 'px');
   }
 
   // ============================================================
@@ -1580,10 +1818,13 @@
       const showEndNotice = s.showEndNotice !== false;
       const showCountdown = s.showCountdown !== false;
 
+      const showContext = s.showPrevLyrics === true || s.showNextLyrics === true;
+
       if (elapsed > totalDuration + 1000) {
         if (showEndNotice && !state.endNoticeShown && state.lyrics.length > 0) {
           state.endNoticeShown = true;
-          // 가상의 종료 엔트리 렌더링
+          // 종료 알림 시에는 컨텍스트 잔상 없이 "🎵 Finish 🎵"만 표시
+          state._lastContextSig = null;
           updateDisplay({
             index: 'finish',
             start: totalDuration + 1000,
@@ -1591,7 +1832,7 @@
             lines: ['🎵 Finish 🎵']
           });
         }
-        
+
         // 종료 알림이 떠있는 시간(약 4초)을 벌어주기 위해 여유 시간 증가.
         // 단, 외부 클럭(SoundCloud 등) 모드에서는 오디오가 재생을 제어하므로
         // 가사 길이만으로 종료시키지 않는다 → 반복 재생/뒤로 탐색 시 가사가 되살아남.
@@ -1602,10 +1843,14 @@
       } else {
         // 아직 종료 시점이 아니면
         state.endNoticeShown = false;
-        
-        // 일반 가사 렌더링
-        const entry = SRTParser.findEntryAtTime(state.lyrics, elapsed);
-        updateDisplay(entry);
+
+        // 가사 렌더링: 컨텍스트(이전/현재/다음) 모드 또는 기존 단일 모드
+        if (showContext) {
+          updateContextDisplay(elapsed);
+        } else {
+          const entry = SRTParser.findEntryAtTime(state.lyrics, elapsed);
+          updateDisplay(entry);
+        }
       }
       
       updateProgressBar(elapsed);
@@ -1648,6 +1893,7 @@
     state.hasJumpedBeforeStart = false;
     state.endNoticeShown = false;
     state.currentEntry = null;
+    state._lastContextSig = null; // 새 재생 → 컨텍스트 재렌더 보장
     state.overlay.container.classList.remove('hidden');
     if (state.settings?.showProgressBar !== false) {
       state.overlay.progressBar.classList.add('visible');
@@ -1675,6 +1921,7 @@
     state.endNoticeShown = false;
     state.currentEntry = null;
     state.externalClock = null;
+    state._lastContextSig = null;
     if (state.animFrameId) {
       cancelAnimationFrame(state.animFrameId);
       state.animFrameId = null;
@@ -1684,6 +1931,9 @@
       state.overlay.progressBar.classList.remove('visible');
       state.overlay.box.classList.add('empty');
       state.overlay.linesContainer.innerHTML = '';
+      if (state.overlay.prevContext) state.overlay.prevContext.innerHTML = '';
+      if (state.overlay.nextContext) state.overlay.nextContext.innerHTML = '';
+      state.overlay.linesContainer.classList.remove('context-gap');
       state.overlay.progressFill.style.width = '0%';
       if (state.overlay.btnToggle) state.overlay.btnToggle.textContent = '▶';
       
@@ -1753,18 +2003,16 @@
       let bottomVp = state.dragStartBottomVp + dy;
       bottomVp = Math.max(boxH, Math.min(bottomVp, window.innerHeight));
 
+      // 드래그 중에는 두 모드 모두 뷰포트(fixed)로 직접 배치 (드래그 중 스크롤 없음).
+      container.style.position = 'fixed';
+      container.style.top = 'auto';
+      container.style.bottom = (window.innerHeight - bottomVp) + 'px';
+      applyContainerAlign(container, centerX);
+
+      // 핀 모드면 문서 좌표 앵커도 갱신 (드래그 후 스크롤 시 페이지에 고정 유지)
       if (isOverlayPinned()) {
-        // 고정 모드: container(높이 0)의 top = 박스 바닥 위치(문서 좌표)
-        container.style.position = 'absolute';
-        container.style.top = (bottomVp + window.scrollY) + 'px';
-        container.style.bottom = 'auto';
-        applyContainerAlign(container, centerX + window.scrollX);
-      } else {
-        // 기본 모드: container.bottom = 뷰포트 하단에서 박스 바닥까지 거리
-        container.style.position = 'fixed';
-        container.style.top = 'auto';
-        container.style.bottom = (window.innerHeight - bottomVp) + 'px';
-        applyContainerAlign(container, centerX);
+        state._pinDocBottom = bottomVp + window.scrollY;
+        state._pinDocCenterX = centerX + window.scrollX;
       }
     });
 
@@ -1784,25 +2032,56 @@
     if (!state.overlay) return;
     // container가 전체 너비이므로 box의 실제 위치를 기준으로 저장
     const boxRect = state.overlay.box.getBoundingClientRect();
-    // 중심점 비율 및 하단 기준 비율로 저장 (위로 자라나게 하기 위함)
+    // 중심점/좌측/우측 끝 비율을 모두 저장. 복원 시 현재 정렬(textAlign)에 맞는 끝점을
+    // 기준으로 복원해야, 가사 길이(박스 너비)가 바뀌어도 좌/우 정렬이 그 끝점에 고정된다.
     const posData = {
       xCenterPercent: (boxRect.left + boxRect.width / 2) / window.innerWidth,
+      xLeftPercent: boxRect.left / window.innerWidth,
+      xRightPercent: (window.innerWidth - boxRect.right) / window.innerWidth,
       yPercent: boxRect.top / window.innerHeight, // 하위 호환성 유지
       bottomPercent: (window.innerHeight - boxRect.bottom) / window.innerHeight
     };
     if (isOverlayPinned()) {
       // 고정 모드: 박스 바닥(bottom)을 문서 좌표로 저장 (box가 bottom:0 → 바닥 기준 배치).
-      // docTop도 하위 호환을 위해 함께 저장.
+      // docTop도 하위 호환을 위해 함께 저장. docLeft/docRight는 좌/우 정렬 고정용.
       updateSiteState({
         overlayPinPosition: {
           docBottom: boxRect.bottom + window.scrollY,
           docTop: boxRect.top + window.scrollY,
-          docCenterX: boxRect.left + boxRect.width / 2 + window.scrollX
+          docCenterX: boxRect.left + boxRect.width / 2 + window.scrollX,
+          docLeft: boxRect.left + window.scrollX,
+          docRight: boxRect.right + window.scrollX
         }
       });
     } else {
       updateSiteState({ overlayPosition: posData });
     }
+  }
+
+  // 저장된 위치 데이터(posData)에서, 현재 정렬(align)에 맞는 고정 끝점을 기준으로
+  // box의 시각적 중심 X를 계산한다. 좌/우 정렬은 해당 끝점이 박스 너비와 무관하게
+  // 항상 그 자리에 고정되도록, 가운데 정렬만 중심점을 그대로 사용한다.
+  function computeCenterXFromPosData(pos, align, boxW, viewportWidth) {
+    if (align === 'left' && pos.xLeftPercent != null) {
+      return pos.xLeftPercent * viewportWidth + boxW / 2;
+    }
+    if (align === 'right' && pos.xRightPercent != null) {
+      return viewportWidth - pos.xRightPercent * viewportWidth - boxW / 2;
+    }
+    if (pos.xCenterPercent != null) return pos.xCenterPercent * viewportWidth;
+    return (pos.xPercent != null ? pos.xPercent : 0.5) * viewportWidth;
+  }
+
+  // 고정(핀) 모드: 저장된 문서 좌표(docLeft/docRight/docCenterX) 중 현재 정렬에 맞는
+  // 끝점을 기준으로 box 중심의 문서 X좌표를 계산한다.
+  function computeDocCenterXForAlign(pinPosData, align, boxW) {
+    if (align === 'left' && pinPosData.docLeft != null) {
+      return pinPosData.docLeft + boxW / 2;
+    }
+    if (align === 'right' && pinPosData.docRight != null) {
+      return pinPosData.docRight - boxW / 2;
+    }
+    return pinPosData.docCenterX;
   }
 
   function restoreSavedPosition() {
@@ -1813,51 +2092,53 @@
       const posData = state.siteState.overlayPosition || globalData.overlayPosition;
       const pinPosData = state.siteState.overlayPinPosition || globalData.overlayPinPosition;
 
-      // 호스트 position 토글 (고정: absolute → 문서 기준, 기본: fixed → 뷰포트 기준)
+      // 호스트/컨테이너는 항상 fixed. 핀(페이지 고정)은 스크롤 양만큼 위치를 직접 보정해
+      // 페이지에 붙어 함께 흘러가게 한다. (position:absolute는 사이트의 스크롤 컨테이너/
+      // containing-block 환경에 따라 스크롤-어웨이가 안 먹는 경우가 있어 fixed+보정으로 통일)
       const pinned = isOverlayPinned();
       if (state.overlay.host) {
-        state.overlay.host.style.position = pinned ? 'absolute' : 'fixed';
-        state.overlay.host.style.width = '100%'; // container가 항상 전체 너비 사용
+        state.overlay.host.style.position = 'fixed';
+        state.overlay.host.style.width = '100%';
       }
+      c.style.position = 'fixed';
+
+      const settings = {
+        ...(state.settings || {}),
+        ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
+      };
+      const align = settings.textAlign || 'center';
+      const boxW = state.overlay.box.offsetWidth;
 
       if (pinned) {
-        // 고정 모드: container(높이 0)의 top = 박스 바닥(docBottom) 문서 좌표 → 페이지와 함께 스크롤
-        c.style.position = 'absolute';
         const boxH = state.overlay.box.offsetHeight;
         let docBottom, docCenterX;
         if (pinPosData && pinPosData.docBottom != null) {
           docBottom = pinPosData.docBottom;
-          docCenterX = pinPosData.docCenterX;
+          docCenterX = computeDocCenterXForAlign(pinPosData, align, boxW);
         } else if (pinPosData && pinPosData.docTop != null) {
-          // 하위 호환: 예전엔 docTop(박스 상단)을 저장했으므로 높이를 더해 바닥으로 환산
+          // 하위 호환: 예전엔 docTop(박스 상단)을 저장 → 높이를 더해 바닥으로 환산
           docBottom = pinPosData.docTop + boxH;
-          docCenterX = pinPosData.docCenterX;
+          docCenterX = computeDocCenterXForAlign(pinPosData, align, boxW);
         } else if (posData) {
-          // 고정 좌표가 없으면 저장된 뷰포트 비율 + 현재 스크롤로 환산
-          const pos = posData;
-          const centerX = (pos.xCenterPercent ? pos.xCenterPercent : pos.xPercent) * window.innerWidth;
-          const bottomVp = pos.bottomPercent !== undefined
-            ? (window.innerHeight - pos.bottomPercent * window.innerHeight)
-            : (pos.yPercent * window.innerHeight + boxH);
+          const centerX = computeCenterXFromPosData(posData, align, boxW, window.innerWidth);
+          const bottomVp = posData.bottomPercent !== undefined
+            ? (window.innerHeight - posData.bottomPercent * window.innerHeight)
+            : (posData.yPercent * window.innerHeight + boxH);
           docBottom = bottomVp + window.scrollY;
           docCenterX = centerX + window.scrollX;
         } else {
           docCenterX = window.innerWidth / 2 + window.scrollX;
           docBottom = window.innerHeight - 100 + window.scrollY;
         }
-        c.style.top = docBottom + 'px';
-        c.style.bottom = 'auto';
-        applyContainerAlign(c, docCenterX);
+        setPinScrollAnchor(docBottom, docCenterX); // 앵커 저장 + 스크롤 리스너 + 즉시 배치
         return;
       }
 
-      // 기본(고정 OFF) 모드: 뷰포트 기준 fixed
-      c.style.position = 'fixed';
+      // 기본(고정 OFF) 모드: 뷰포트 기준 fixed (스크롤 따라 화면에 머무름)
+      detachPinScroll();
       if (posData) {
         const pos = posData;
-        const centerX = pos.xCenterPercent
-          ? pos.xCenterPercent * window.innerWidth
-          : (pos.xPercent * window.innerWidth);
+        const centerX = computeCenterXFromPosData(pos, align, boxW, window.innerWidth);
 
         if (pos.bottomPercent !== undefined) {
           const bottomY = pos.bottomPercent * window.innerHeight;
@@ -1882,6 +2163,50 @@
 
   function isOverlayPinned() {
     return !!state.siteState.isPinned;
+  }
+
+  // ── 핀(페이지 고정) 스크롤 보정 ──────────────────────────────────
+  // 문서 좌표(docBottom/docCenterX)를 기준으로, 현재 스크롤 양을 빼서 뷰포트(fixed)
+  // 위치를 계산한다. 스크롤하면 위치가 함께 이동해 '페이지에 고정'된 것처럼 보인다.
+  function applyPinnedViewportPosition() {
+    if (!state.overlay || !isOverlayPinned()) return;
+    if (state._pinDocBottom == null) return;
+    const c = state.overlay.container;
+    const bottomVp = state._pinDocBottom - window.scrollY;   // 뷰포트 기준 박스 바닥
+    const centerXVp = state._pinDocCenterX - window.scrollX; // 뷰포트 기준 중심 X
+    c.style.position = 'fixed';
+    c.style.top = 'auto';
+    c.style.bottom = (window.innerHeight - bottomVp) + 'px';
+    applyContainerAlign(c, centerXVp);
+  }
+
+  function setPinScrollAnchor(docBottom, docCenterX) {
+    state._pinDocBottom = docBottom;
+    state._pinDocCenterX = docCenterX;
+    attachPinScroll();
+    applyPinnedViewportPosition();
+  }
+
+  function attachPinScroll() {
+    if (state._pinScrollHandler) return;
+    const onScroll = () => {
+      if (state._pinRaf) return;
+      state._pinRaf = requestAnimationFrame(() => {
+        state._pinRaf = null;
+        applyPinnedViewportPosition();
+      });
+    };
+    state._pinScrollHandler = onScroll;
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+  }
+
+  function detachPinScroll() {
+    if (!state._pinScrollHandler) return;
+    window.removeEventListener('scroll', state._pinScrollHandler);
+    window.removeEventListener('resize', state._pinScrollHandler);
+    state._pinScrollHandler = null;
+    if (state._pinRaf) { cancelAnimationFrame(state._pinRaf); state._pinRaf = null; }
   }
 
   // 정렬 설정에 따라 box의 left/right/transform을 설정.
@@ -1962,12 +2287,16 @@
         updates.overlayPinPosition = {
           docBottom: boxRect.bottom + window.scrollY,
           docTop: boxRect.top + window.scrollY,
-          docCenterX: boxRect.left + boxRect.width / 2 + window.scrollX
+          docCenterX: boxRect.left + boxRect.width / 2 + window.scrollX,
+          docLeft: boxRect.left + window.scrollX,
+          docRight: boxRect.right + window.scrollX
         };
       } else {
         // 끌 때: 현재 화면 위치를 뷰포트 비율로 저장 → 그 자리에서 뷰포트 고정으로 복귀
         updates.overlayPosition = {
           xCenterPercent: (boxRect.left + boxRect.width / 2) / window.innerWidth,
+          xLeftPercent: boxRect.left / window.innerWidth,
+          xRightPercent: (window.innerWidth - boxRect.right) / window.innerWidth,
           yPercent: boxRect.top / window.innerHeight,
           bottomPercent: (window.innerHeight - boxRect.bottom) / window.innerHeight
         };
@@ -2119,11 +2448,13 @@
         const c = state.overlay.container;
 
         if (isOverlayPinned()) {
-          // 고정 모드: container(높이 0)의 top = 박스 바닥 위치(문서 좌표)
-          c.style.position = 'absolute';
-          c.style.top = `${bottomEdgeVp + window.scrollY}px`;
-          c.style.bottom = 'auto';
-          applyContainerAlign(c, centerX + window.scrollX);
+          // 고정 모드: 뷰포트로 배치 후 문서 좌표 앵커 갱신 (스크롤 보정은 리스너가 처리)
+          c.style.position = 'fixed';
+          c.style.top = 'auto';
+          c.style.bottom = `${window.innerHeight - bottomEdgeVp}px`;
+          applyContainerAlign(c, centerX);
+          state._pinDocBottom = bottomEdgeVp + window.scrollY;
+          state._pinDocCenterX = centerX + window.scrollX;
         } else {
           // 기본 모드: 뷰포트 하단 기준
           c.style.position = 'fixed';

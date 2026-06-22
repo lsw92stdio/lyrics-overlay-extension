@@ -349,10 +349,11 @@
       <ul class="setting-list">
         <li><span class="setting-key">곡 종료 알림</span> 마지막 가사 이후 <em>🎵 Finish 🎵</em> 알림 표시</li>
         <li><span class="setting-key">진행 바</span> 브라우저 하단에 재생 위치 표시 바 표시 여부</li>
-        <li><span class="setting-key">노래 자동 감지</span> SoundCloud 등에서 재생 중인 곡을 자동으로 감지해 가사를 로드하고 동기화. (기본값: 켜짐)</li>
+        <li><span class="setting-key">노래 자동 감지</span> SoundCloud 등에서 재생 중인 곡을 자동으로 감지해 가사를 로드하고 동기화 (기본값: 켜짐)</li>
         <li><span class="setting-key">리모컨 버튼</span> 플로팅 리모컨에 표시할 버튼 개별 선택 (라이브러리·타임라인·영역 선택·재생/정지·싱크 조절)</li>
         <li><span class="setting-key">가수/제목 표시</span> 라이브러리 및 플레이어에서 이름 표시 방식: 원문+한국어 / 원문 우선 / 한국어 우선</li>
         <li><span class="setting-key">구글 시트 URL</span> 시트 연동에 사용할 스프레드시트 주소</li>
+        <li><span class="setting-key">이전 가사 표시 / 다음 가사 표시</span> 현재 가사 위·아래에 이전·다음 줄을 작게 함께 표시합니다(노래방 화면처럼)</li>
       </ul>
     </div>
 
@@ -361,8 +362,9 @@
       <ul class="setting-list">
         <li><span class="setting-key">원문 / 발음 / 한국어</span> 각 줄의 표시 여부, 폰트 크기, 색상 개별 설정</li>
         <li><span class="setting-key">배경</span> 배경색, 투명도(0~100%), 블러 강도</li>
-        <li><span class="setting-key">애니메이션</span> 페이드 / 슬라이드 / 없음</li>
-        <li><span class="setting-key">텍스트 외곽선</span> 글자에 외곽선(drop shadow) 적용 여부</li>
+        <li><span class="setting-key">애니메이션</span> 페이드 / 슬라이드 / 없음 (이전/다음 가사 표시가 켜져 있으면 비활성화)</li>
+        <li><span class="setting-key">텍스트 그림자</span> 글자에 부드러운 그림자(drop shadow) 적용 여부</li>
+        <li><span class="setting-key">외곽선 굵기</span> 글자에 단단한 외곽선(stroke)을 추가 — 투명 배경에서 가독성을 높일 때 유용</li>
         <li><span class="setting-key">정렬 방향</span> 가사창 및 텍스트 정렬: 왼쪽 / 가운데 / 오른쪽</li>
         <li><span class="setting-key">페이지 고정(Pin)</span> 가사창을 페이지 좌표에 고정 — 스크롤해도 위치 유지. 가사창에 마우스를 올리면 나타나는 📌 핀 버튼으로도 토글 가능</li>
         <li><span class="setting-key">핀 색상</span> 핀 아이콘 색상 설정 (배경색에 따라 조절)</li>
@@ -442,7 +444,7 @@
       <div class="sub-title">🎨 사이트별 테마 색상</div>
       <p style="margin-bottom:8px;">접속한 사이트에 따라 리모컨 색상이 자동으로 변경됩니다:</p>
       <div>
-        <span class="theme-badge"><span class="dot" style="background:#00FFA3"></span>치지직 / 기본</span>
+        <span class="theme-badge"><span class="dot" style="background:#00FFA3"></span>기본 (치지직)</span>
         <span class="theme-badge"><span class="dot" style="background:#FF0033"></span>유튜브</span>
         <span class="theme-badge"><span class="dot" style="background:#9147FF"></span>트위치</span>
         <span class="theme-badge"><span class="dot" style="background:#FF5500"></span>사운드클라우드</span>
@@ -587,20 +589,22 @@
       <ul class="setting-list">
         <li><span class="setting-key">End Notice</span> Show a <em>🎵 Finish 🎵</em> notification after the last lyric ends</li>
         <li><span class="setting-key">Progress Bar</span> Show a thin progress bar at the bottom of the browser viewport</li>
-        <li><span class="setting-key">Auto-Detect Song</span> Automatically detect the playing track on SoundCloud and sync lyrics. (Default: on)</li>
+        <li><span class="setting-key">Auto-Detect Song</span> Automatically detect the playing track on SoundCloud and sync lyrics (Default: on)</li>
         <li><span class="setting-key">Remote Buttons</span> Choose which buttons appear on the floating remote (Library / Timeline / Area / Play-Stop / Sync)</li>
         <li><span class="setting-key">Display Language</span> How artist/title names are shown in library and player: Original+Korean / Original first / Korean first</li>
         <li><span class="setting-key">Sheet URL</span> Google Spreadsheet URL used for sheet sync</li>
+        <li><span class="setting-key">Show Previous / Next Lyric</span> Shows the previous and next lines, smaller, right above and below the current line — like a karaoke screen</li>
       </ul>
     </div>
 
     <div class="sub">
       <div class="sub-title">🎨 Design Tab</div>
       <ul class="setting-list">
-        <li><span class="setting-key">Original / Pron / Korean</span> Show/hide, font size, and color for each lyric line independently</li>
+        <li><span class="setting-key">Original / Pron / English</span> Show/hide, font size, and color for each lyric line independently</li>
         <li><span class="setting-key">Background</span> Background color, opacity (0–100%), and blur intensity</li>
-        <li><span class="setting-key">Animation</span> Fade / Slide / None</li>
-        <li><span class="setting-key">Text Shadow</span> Toggle outline/drop-shadow on lyric text</li>
+        <li><span class="setting-key">Animation</span> Fade / Slide / None (disabled when Show Previous/Next Lyric is on)</li>
+        <li><span class="setting-key">Text Shadow</span> Toggle a soft drop-shadow on lyric text</li>
+        <li><span class="setting-key">Outline Width</span> Add a solid stroke outline to the text — useful for readability on a transparent background</li>
         <li><span class="setting-key">Alignment</span> Lyric box and text alignment: Left / Center / Right</li>
         <li><span class="setting-key">Pin to Page</span> Anchors the lyric box to page coordinates — it stays in place when you scroll. Also toggled by the 📌 pin button that appears when hovering over the lyric box</li>
         <li><span class="setting-key">Pin Color</span> Color of the pin icon (adjust to match your background)</li>
@@ -680,7 +684,7 @@ Second line</span></pre>
       <div class="sub-title">🎨 Site themes</div>
       <p style="margin-bottom:8px;">The remote color automatically matches the site you're on:</p>
       <div>
-        <span class="theme-badge"><span class="dot" style="background:#00FFA3"></span>Chzzk / Default</span>
+        <span class="theme-badge"><span class="dot" style="background:#00FFA3"></span>Default</span>
         <span class="theme-badge"><span class="dot" style="background:#FF0033"></span>YouTube</span>
         <span class="theme-badge"><span class="dot" style="background:#9147FF"></span>Twitch</span>
         <span class="theme-badge"><span class="dot" style="background:#FF5500"></span>SoundCloud</span>
@@ -825,20 +829,22 @@ Second line</span></pre>
       <ul class="setting-list">
         <li><span class="setting-key">終了通知</span> 最後の歌詞が終わった後に <em>🎵 Finish 🎵</em> 通知を表示</li>
         <li><span class="setting-key">プログレスバー</span> ブラウザ下部に再生位置バーを表示するか</li>
-        <li><span class="setting-key">楽曲自動検出</span> SoundCloudなどで再生中の曲を自動検出して歌詞を読み込み・同期。（デフォルト: オン）</li>
+        <li><span class="setting-key">楽曲自動検出</span> SoundCloudなどで再生中の曲を自動検出して歌詞を読み込み・同期（デフォルト: オン）</li>
         <li><span class="setting-key">リモコンボタン</span> フローティングリモコンに表示するボタンを個別選択（ライブラリ・タイムライン・エリア・再生停止・同期調整）</li>
         <li><span class="setting-key">表示言語</span> ライブラリ・プレイヤーでのアーティスト/タイトル表示方式: 原文+韓国語 / 原文優先 / 韓国語優先</li>
         <li><span class="setting-key">シートURL</span> シート同期に使用するGoogleスプレッドシートのURL</li>
+        <li><span class="setting-key">前の歌詞を表示 / 次の歌詞を表示</span> 現在の行の上下に、前後の歌詞を小さく一緒に表示します（カラオケ画面のように）</li>
       </ul>
     </div>
 
     <div class="sub">
       <div class="sub-title">🎨 デザインタブ</div>
       <ul class="setting-list">
-        <li><span class="setting-key">原文 / 読み仮名 / 韓国語</span> 各行の表示有無・フォントサイズ・色を個別設定</li>
+        <li><span class="setting-key">原文 / 読み仮名 / 日本語</span> 各行の表示有無・フォントサイズ・色を個別設定</li>
         <li><span class="setting-key">背景</span> 背景色・透明度(0〜100%)・ぼかし強度</li>
-        <li><span class="setting-key">アニメーション</span> フェード / スライド / なし</li>
-        <li><span class="setting-key">テキスト縁取り</span> 歌詞テキストの輪郭線（ドロップシャドウ）の有無</li>
+        <li><span class="setting-key">アニメーション</span> フェード / スライド / なし（前/次の歌詞表示がオンの場合は無効化）</li>
+        <li><span class="setting-key">テキストドロップシャドウ</span> 歌詞テキストに柔らかい影を付けるかどうか</li>
+        <li><span class="setting-key">縁取りの太さ</span> テキストに単色の縁取り（ストローク）を追加 — 透明背景での視認性向上に有用</li>
         <li><span class="setting-key">整列方向</span> 歌詞ボックスおよびテキストの整列: 左 / 中央 / 右</li>
         <li><span class="setting-key">ページへ固定（Pin）</span> 歌詞ボックスをページ座標に固定 — スクロールしても位置をキープ。歌詞ボックスにマウスを乗せると表示される 📌 ピンボタンでもトグル可能</li>
         <li><span class="setting-key">ピンの色</span> ピンアイコンの色（背景色に合わせて調整）</li>
@@ -918,7 +924,7 @@ Second line</span></pre>
       <div class="sub-title">🎨 サイト別テーマカラー</div>
       <p style="margin-bottom:8px;">アクセスしているサイトに応じてリモコンの色が自動的に変わります：</p>
       <div>
-        <span class="theme-badge"><span class="dot" style="background:#00FFA3"></span>チジック / デフォルト</span>
+        <span class="theme-badge"><span class="dot" style="background:#00FFA3"></span>デフォルト</span>
         <span class="theme-badge"><span class="dot" style="background:#FF0033"></span>YouTube</span>
         <span class="theme-badge"><span class="dot" style="background:#9147FF"></span>Twitch</span>
         <span class="theme-badge"><span class="dot" style="background:#FF5500"></span>SoundCloud</span>

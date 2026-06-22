@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Screenshot — KO</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    width: 1280px; height: 800px; overflow: hidden;
+    font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(circle at 20% 20%, #14233a 0%, #0d1117 55%, #07090d 100%);
+    display: flex; align-items: center; justify-content: center; gap: 48px;
+  }
+
+  /* ───── 왼쪽: 마케팅 ───── */
+  .left { width: 440px; color: #fff; flex-shrink: 0; }
+
+  .ext-badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: rgba(0,255,163,0.1); border: 1px solid rgba(0,255,163,0.25);
+    border-radius: 99px; padding: 6px 15px; font-size: 11px;
+    color: #00FFA3; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 24px;
+  }
+
+  .left h1 { font-size: 40px; font-weight: 800; line-height: 1.18; margin-bottom: 16px; letter-spacing: -0.02em; }
+  .left h1 span { background: linear-gradient(90deg, #00FFA3, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .left .lead { font-size: 15px; color: rgba(255,255,255,0.58); line-height: 1.7; margin-bottom: 34px; }
+
+  .features { display: flex; flex-direction: column; gap: 14px; }
+  .feature-item { display: flex; align-items: flex-start; gap: 13px; }
+  .feature-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .fi-green  { background: rgba(0,255,163,0.14); }
+  .fi-blue   { background: rgba(56,189,248,0.14); }
+  .fi-orange { background: rgba(255,168,0,0.14); }
+  .fi-purple { background: rgba(183,148,244,0.14); }
+  .feature-text strong { display: block; font-size: 13.5px; font-weight: 700; color: rgba(255,255,255,0.92); margin-bottom: 3px; }
+  .feature-text span   { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+
+  /* ───── 오른쪽: 제품 목업 ───── */
+  .right { position: relative; width: 620px; height: 660px; flex-shrink: 0; }
+
+  /* 영상 플레이어 */
+  .player {
+    position: absolute; top: 40px; left: 0; width: 620px; height: 350px;
+    border-radius: 16px; overflow: hidden;
+    background: linear-gradient(160deg, #2a3548 0%, #1a2233 60%, #11161f 100%);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 30px 70px rgba(0,0,0,0.55);
+  }
+  .player::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 70% 30%, rgba(0,255,163,0.12), transparent 45%),
+      radial-gradient(circle at 25% 75%, rgba(56,189,248,0.1), transparent 45%);
+  }
+  .play-disc {
+    position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+    width: 72px; height: 72px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    display: flex; align-items: center; justify-content: center; font-size: 26px; color: rgba(255,255,255,0.5);
+  }
+
+  /* 가사 오버레이 */
+  .lyric-overlay {
+    position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%);
+    width: 90%; padding: 18px 24px; text-align: center;
+    background: rgba(0,0,0,0.46); backdrop-filter: blur(5px);
+    border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .lyric-overlay .l-orig { font-size: 19px; font-weight: 700; color: #FFA800; }
+  .lyric-overlay .l-pron { font-size: 14px; color: #F5E6CC; }
+  .lyric-overlay .l-main { font-size: 27px; font-weight: 800; color: #fff; margin-top: 3px; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+
+  /* 진행 바 */
+  .ov-progress { position: absolute; left: 22px; right: 22px; bottom: 14px; height: 4px; background: rgba(255,255,255,0.15); border-radius: 3px; }
+  .ov-progress::after { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 58%; background: #00FFA3; border-radius: 3px; box-shadow: 0 0 8px rgba(0,255,163,0.6); }
+
+  /* 플로팅 리모컨 */
+  .remote {
+    position: absolute; top: 60px; right: 18px; z-index: 5;
+    display: flex; align-items: center; gap: 7px;
+    background: rgba(20,21,23,0.95); border: 1px solid rgba(0,255,163,0.35);
+    border-radius: 12px; padding: 8px 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 18px rgba(0,255,163,0.12);
+  }
+  .remote .rgrip { color: #57575f; display: flex; align-items: center; padding: 0 2px; }
+  .remote .rbtn { width: 30px; height: 30px; border-radius: 8px; background: #26282d; border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 13px; color: #efeff1; }
+  .remote .rbtn.play { background: #00FFA3; color: #000; }
+  .remote .rsync { display: flex; align-items: center; gap: 5px; padding: 0 4px; font-size: 11px; color: #adadb8; }
+  .remote .rsync b { color: #00FFA3; font-variant-numeric: tabular-nums; }
+
+  /* 팝업 */
+  .popup {
+    position: absolute; bottom: 0; right: 16px; width: 322px; z-index: 6;
+    background: #141517; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.3), 0 30px 70px rgba(0,0,0,0.6);
+  }
+  .popup-header { display: flex; align-items: center; gap: 10px; padding: 13px 15px; background: #1e2024; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .popup-icon { width: 30px; height: 30px; border-radius: 7px; overflow: hidden; flex-shrink: 0; }
+  .popup-icon img { width: 100%; height: 100%; object-fit: cover; }
+  .popup-htext h2 { font-size: 13px; font-weight: 700; color: #efeff1; }
+  .popup-htext p { font-size: 10.5px; color: #adadb8; margin-top: 1px; }
+  .remote-pill { margin-left: auto; font-size: 9.5px; font-weight: 700; color: #00FFA3; background: rgba(0,255,163,0.12); border: 1px solid rgba(0,255,163,0.3); border-radius: 6px; padding: 3px 7px; }
+
+  .tabs { display: flex; gap: 4px; padding: 8px 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .tab { flex: 1; text-align: center; padding: 8px 0; font-size: 11px; color: #57575f; border-bottom: 2px solid transparent; }
+  .tab.active { color: #00FFA3; border-bottom-color: #00FFA3; }
+
+  .lib-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 12px 13px 9px; }
+  .lib-head h3 { font-size: 12.5px; font-weight: 600; color: #efeff1; white-space: nowrap; }
+  .lib-count { font-size: 10px; color: #adadb8; background: #26282d; border: 1px solid rgba(255,255,255,0.06); border-radius: 9px; padding: 1px 7px; }
+  .lib-actions { display: flex; gap: 5px; margin-left: auto; }
+  .lib-btn { font-size: 9.5px; padding: 4px 7px; border-radius: 6px; white-space: nowrap; }
+  .lib-btn.sec { background: #26282d; color: #adadb8; border: 1px solid rgba(255,255,255,0.06); }
+  .lib-btn.add { background: #00FFA3; color: #000; font-weight: 700; }
+
+  .lib-search { padding: 0 13px 10px; }
+  .lib-search .box { display: flex; align-items: center; padding: 7px 11px; background: #1e2024; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; font-size: 11px; color: #57575f; }
+
+  .lib-list { padding: 0 11px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .song { display: flex; align-items: center; gap: 10px; padding: 9px 11px; background: #1e2024; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; }
+  .song.active { border-color: rgba(0,255,163,0.45); box-shadow: 0 0 8px rgba(0,255,163,0.12); }
+  .song-icon { font-size: 16px; opacity: 0.55; color: #fff; flex-shrink: 0; }
+  .song-info { flex: 1; min-width: 0; }
+  .song-name { display: flex; align-items: center; font-size: 12px; font-weight: 500; color: #efeff1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song-idx { font-size: 9px; font-weight: 700; font-family: Consolas, monospace; color: #00FFA3; background: #26282d; border: 1px solid rgba(255,255,255,0.06); border-radius: 4px; padding: 1px 5px; margin-right: 7px; flex-shrink: 0; }
+  .song-del { color: #57575f; font-size: 12px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+  <div class="left">
+    <div class="ext-badge">✦ CHROME 확장프로그램</div>
+    <h1>영상 위에 띄우는<br /><span>싱크 가사 오버레이</span></h1>
+    <p class="lead">SRT 가사 파일을 불러오면 원문·발음·번역을<br />영상 위에 실시간으로 표시합니다.<br />유튜브, 치지직, 트위치 어디서나 동작합니다.</p>
+    <div class="features">
+      <div class="feature-item">
+        <div class="feature-icon fi-orange">📝</div>
+        <div class="feature-text"><strong>원문 / 발음 / 번역 3줄 자동 분리</strong><span>SRT 줄 수에 맞춰 스타일이 자동 적용</span></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon fi-green">🎮</div>
+        <div class="feature-text"><strong>플로팅 리모컨</strong><span>팝업을 열지 않고 화면 위에서 바로 제어</span></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon fi-blue">📑</div>
+        <div class="feature-text"><strong>구글 시트 연동 라이브러리</strong><span>가사를 저장·검색하고 시트로 동기화</span></div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon fi-purple">🎨</div>
+        <div class="feature-text"><strong>자유로운 디자인 커스텀</strong><span>폰트·색상·위치·싱크를 원하는 대로</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right">
+    <!-- 영상 + 가사 오버레이 -->
+    <div class="player">
+      <div class="play-disc">▶</div>
+      <div class="lyric-overlay">
+        <span class="l-orig">君の心へ続く長い一本道は</span>
+        <span class="l-pron">키미노 코코로에 츠즈쿠 나가이 잇폰미치와</span>
+        <span class="l-main">너의 마음으로 이어지는 기나긴 외길은</span>
+      </div>
+      <div class="ov-progress"></div>
+    </div>
+
+    <!-- 플로팅 리모컨 -->
+    <div class="remote">
+      <span class="rgrip"><svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/></svg></span>
+      <div class="rbtn">🎵</div>
+      <div class="rbtn">📜</div>
+      <div class="rbtn play">▶</div>
+      <div class="rsync"><span>−</span><b>0.0s</b><span>+</span></div>
+    </div>
+
+    <!-- 팝업 -->
+    <div class="popup">
+      <div class="popup-header">
+        <div class="popup-icon"><img src="../icons/icon128.png" alt="" /></div>
+        <div class="popup-htext"><h2>Lyrics Overlay</h2><p>싱크 가사 오버레이</p></div>
+        <span class="remote-pill">리모컨 ON</span>
+      </div>
+      <div class="tabs">
+        <div class="tab">▶ 플레이어</div>
+        <div class="tab active"><svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-1.5px;margin-right:4px"><path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3zm-8.322.12C1.72 3.042 1.95 3 2.19 3h5.396l-.707-.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 1v.12z"/></svg>라이브러리</div>
+        <div class="tab">⚙ 설정</div>
+      </div>
+      <div class="lib-head">
+        <h3>저장된 가사</h3><span class="lib-count">128</span>
+        <div class="lib-actions">
+          <span class="lib-btn sec">시트 연동</span>
+          <span class="lib-btn sec">시트 양식 복사</span>
+          <span class="lib-btn add">+ 추가</span>
+        </div>
+      </div>
+      <div class="lib-search"><div class="box">번호, 가수, 제목으로 검색...</div></div>
+      <div class="lib-list">
+        <div class="song active">
+          <span class="song-icon">♪</span>
+          <div class="song-info"><div class="song-name"><span class="song-idx">01</span>YOASOBI - 아이돌</div></div>
+          <span class="song-del">✕</span>
+        </div>
+        <div class="song">
+          <span class="song-icon">♪</span>
+          <div class="song-info"><div class="song-name"><span class="song-idx">02</span>Vaundy - 회천</div></div>
+          <span class="song-del">✕</span>
+        </div>
+        <div class="song">
+          <span class="song-icon">♪</span>
+          <div class="song-info"><div class="song-name"><span class="song-idx">03</span>Mrs. GREEN APPLE - 라이라이</div></div>
+          <span class="song-del">✕</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
     bgBlurValue: document.getElementById('bgBlurValue'),
     libraryDisplayLang: document.getElementById('libraryDisplayLang'),
     settingsAnimation: document.getElementById('settingsAnimation'),
+    animationHint: document.getElementById('animationHint'),
     settingsTextAlign: document.getElementById('settingsTextAlign'),
     textShadow: document.getElementById('textShadow'),
     googleSheetUrl: document.getElementById('googleSheetUrl'),
@@ -82,6 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
     autoDetectSong: document.getElementById('autoDetectSong'),
     remotePanelAutoClose: document.getElementById('remotePanelAutoClose'),
     remotePanelAutoCloseSec: document.getElementById('remotePanelAutoCloseSec'),
+    showPrevLyrics: document.getElementById('showPrevLyrics'),
+    showNextLyrics: document.getElementById('showNextLyrics'),
+    outlineWidth: document.getElementById('outlineWidth'),
+    outlineWidthValue: document.getElementById('outlineWidthValue'),
     pinColor: document.getElementById('pinColor'),
     pinColorValue: document.getElementById('pinColorValue'),
     btnToggleRemote: document.getElementById('btnToggleRemote'),
@@ -699,7 +704,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return l.name === newItem.name;
       });
 
-      if (!parsed.index) {
+      // Auto Only 가사는 번호를 채번하지 않는다 (수동 목록에서 숨겨지므로 번호 불필요).
+      // 일반→Auto Only 전환 시 기존 번호도 제거.
+      if (newItem.autoOnly) {
+        parsed.index = '';
+      } else if (!parsed.index) {
         if (existingIndex >= 0 && list[existingIndex].parsed && list[existingIndex].parsed.index) {
           parsed.index = list[existingIndex].parsed.index;
         } else {
@@ -825,16 +834,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   els.btnExportSettings.addEventListener('click', async () => {
     const data = await getStorageData('settings', 'remotePosition', 'remoteMinimized');
+    // 저장된 적 없는(기본값 그대로인) 설정도 빠지지 않도록 기본값과 병합해서 내보낸다.
+    const merged = { ...defaultSettings, ...(data.settings || {}) };
     const exportData = { settings: {}, remotePosition: data.remotePosition, remoteMinimized: data.remoteMinimized };
-    if (data.settings) {
-      GENERAL_KEYS.forEach(k => {
-        if (data.settings[k] !== undefined) exportData.settings[k] = data.settings[k];
-      });
-      if (exportData.settings.remoteEnabledSites) {
-        exportData.settings.remoteEnabledSites = Object.fromEntries(
-          Object.entries(exportData.settings.remoteEnabledSites).filter(([, v]) => v === true)
-        );
-      }
+    GENERAL_KEYS.forEach(k => {
+      if (merged[k] !== undefined) exportData.settings[k] = merged[k];
+    });
+    if (exportData.settings.remoteEnabledSites) {
+      exportData.settings.remoteEnabledSites = Object.fromEntries(
+        Object.entries(exportData.settings.remoteEnabledSites).filter(([, v]) => v === true)
+      );
     }
     const jsonStr = JSON.stringify(exportData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -849,12 +858,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   els.btnExportDesign.addEventListener('click', async () => {
     const data = await getStorageData('settings', 'siteStates', 'overlayPosition', 'overlayPinPosition');
-    const exportData = { settings: {}, siteStates: data.siteStates, overlayPosition: data.overlayPosition, overlayPinPosition: data.overlayPinPosition };
-    if (data.settings) {
-      DESIGN_KEYS.forEach(k => {
-        if (data.settings[k] !== undefined) exportData.settings[k] = data.settings[k];
-      });
-    }
+    // 저장된 적 없는(기본값 그대로인) 설정도 빠지지 않도록 기본값과 병합해서 내보낸다.
+    const merged = { ...defaultSettings, ...(data.settings || {}) };
+    // siteStates에는 디자인과 무관한 currentTrack(재생 중 가사 복원용, srtText 포함)이
+    // 함께 들어있어 불필요하게 커지므로 제외하고 내보낸다.
+    const siteStates = data.siteStates
+      ? Object.fromEntries(Object.entries(data.siteStates).map(([host, s]) => {
+          const { currentTrack, ...rest } = s;
+          return [host, rest];
+        }))
+      : data.siteStates;
+    const exportData = { settings: {}, siteStates, overlayPosition: data.overlayPosition, overlayPinPosition: data.overlayPinPosition };
+    DESIGN_KEYS.forEach(k => {
+      if (merged[k] !== undefined) exportData.settings[k] = merged[k];
+    });
     const jsonStr = JSON.stringify(exportData, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -912,7 +929,16 @@ document.addEventListener('DOMContentLoaded', () => {
           if (settingsToSave[k] !== undefined) updates.settings[k] = settingsToSave[k];
         });
         
-        if (importedData.siteStates !== undefined) updates.siteStates = importedData.siteStates;
+        if (importedData.siteStates !== undefined) {
+          // 디자인 내보내기에는 currentTrack(재생 복원용 데이터)이 빠져있으므로,
+          // 가져오기 시 기존 currentTrack을 보존한 채 디자인 관련 필드만 덮어쓴다.
+          const existingSiteStates = (await getStorageData('siteStates')).siteStates || {};
+          const mergedSiteStates = { ...existingSiteStates };
+          Object.entries(importedData.siteStates).forEach(([host, s]) => {
+            mergedSiteStates[host] = { ...(existingSiteStates[host] || {}), ...s };
+          });
+          updates.siteStates = mergedSiteStates;
+        }
         if (importedData.overlayPosition !== undefined) updates.overlayPosition = importedData.overlayPosition;
         if (importedData.overlayPinPosition !== undefined) updates.overlayPinPosition = importedData.overlayPinPosition;
 
@@ -1171,14 +1197,26 @@ document.addEventListener('DOMContentLoaded', () => {
     remoteEnabledSites: {},
     remoteBtnLibrary: true, remoteBtnTimeline: true, remoteBtnArea: true,
     remoteBtnPlayStop: true, remoteBtnSync: true,
-    remotePanelAutoClose: true, remotePanelAutoCloseSec: 5
+    remotePanelAutoClose: true, remotePanelAutoCloseSec: 5,
+    showPrevLyrics: false, showNextLyrics: false,
+    outlineWidth: 0
   };
 
-  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync', 'remotePanelAutoClose', 'remotePanelAutoCloseSec'];
-  const DESIGN_KEYS = ['origFontSize', 'origColor', 'showOriginal', 'pronFontSize', 'pronColor', 'showPronunciation', 'mainFontSize', 'mainColor', 'bgColor', 'bgOpacity', 'bgBlur', 'textShadow', 'animation', 'textAlign', 'pinColor', 'fontFamily'];
+  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync', 'remotePanelAutoClose', 'remotePanelAutoCloseSec', 'showPrevLyrics', 'showNextLyrics'];
+  const DESIGN_KEYS = ['origFontSize', 'origColor', 'showOriginal', 'pronFontSize', 'pronColor', 'showPronunciation', 'mainFontSize', 'mainColor', 'bgColor', 'bgOpacity', 'bgBlur', 'textShadow', 'outlineWidth', 'animation', 'textAlign', 'pinColor', 'fontFamily'];
 
   function getSettings() { return new Promise(resolve => { chrome.storage.local.get(['settings'], data => { resolve({ ...defaultSettings, ...(data.settings || {}) }); }); }); }
   function saveSettings(settings) { return chrome.storage.local.set({ settings }); }
+
+  // 이전/다음 가사 표시 ON일 때는 줄 전환 애니메이션이 거의 재생되지 않으므로
+  // 애니메이션 선택을 비활성화하고 안내 문구를 보여준다.
+  function updateAnimationAvailability() {
+    if (!els.settingsAnimation) return;
+    const contextMode = (els.showPrevLyrics && els.showPrevLyrics.checked) ||
+      (els.showNextLyrics && els.showNextLyrics.checked);
+    els.settingsAnimation.disabled = contextMode;
+    if (els.animationHint) els.animationHint.classList.toggle('visible', contextMode);
+  }
 
   async function loadSettingsUI(keepToggleState = false, isInitialLoad = false) {
     const tabs = await new Promise(resolve => chrome.tabs.query({ active: true, currentWindow: true }, resolve));
@@ -1236,6 +1274,11 @@ document.addEventListener('DOMContentLoaded', () => {
     els.settingsAnimation.value = d.animation || 'fade';
     els.settingsTextAlign.value = d.textAlign || 'center';
     els.textShadow.checked = d.textShadow !== false;
+    if (els.outlineWidth) {
+      const ow = d.outlineWidth ?? 0;
+      els.outlineWidth.value = ow;
+      els.outlineWidthValue.textContent = ow + 'px';
+    }
 
     els.libraryDisplayLang.value = s.libraryDisplayLang || 'both';
     els.showEndNotice.checked = s.showEndNotice !== false;
@@ -1243,6 +1286,9 @@ document.addEventListener('DOMContentLoaded', () => {
     els.autoDetectSong.checked = s.autoDetectSong !== false;
     if (els.remotePanelAutoClose) els.remotePanelAutoClose.checked = s.remotePanelAutoClose !== false;
     if (els.remotePanelAutoCloseSec) els.remotePanelAutoCloseSec.value = s.remotePanelAutoCloseSec ?? 5;
+    if (els.showPrevLyrics) els.showPrevLyrics.checked = s.showPrevLyrics === true;
+    if (els.showNextLyrics) els.showNextLyrics.checked = s.showNextLyrics === true;
+    updateAnimationAvailability();
     els.pinColor.value = s.pinColor || '#FFFFFF';
     els.pinColorValue.textContent = s.pinColor || '#FFFFFF';
     els.remoteBtnLibrary.checked = s.remoteBtnLibrary !== false;
@@ -1277,6 +1323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     els.pinColor.addEventListener('input', () => { els.pinColorValue.textContent = els.pinColor.value; });
     els.bgOpacity.addEventListener('input', () => { els.bgOpacityValue.textContent = els.bgOpacity.value + '%'; });
     els.bgBlur.addEventListener('input', () => { els.bgBlurValue.textContent = els.bgBlur.value + 'px'; });
+    if (els.outlineWidth) els.outlineWidth.addEventListener('input', () => { els.outlineWidthValue.textContent = els.outlineWidth.value + 'px'; });
     els.libraryDisplayLang.addEventListener('change', () => {
       renderLibrary();
       updatePlayerUI();
@@ -1336,6 +1383,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (els.showPrevLyrics) els.showPrevLyrics.addEventListener('change', updateAnimationAvailability);
+  if (els.showNextLyrics) els.showNextLyrics.addEventListener('change', updateAnimationAvailability);
+
   els.btnSaveSettings.addEventListener('click', async () => {
     const s = await getSettings();
     const enabledSites = Object.fromEntries(
@@ -1352,6 +1402,8 @@ document.addEventListener('DOMContentLoaded', () => {
       remotePanelAutoCloseSec: els.remotePanelAutoCloseSec
         ? Math.max(1, parseInt(els.remotePanelAutoCloseSec.value, 10) || 5)
         : 5,
+      showPrevLyrics: els.showPrevLyrics ? els.showPrevLyrics.checked : false,
+      showNextLyrics: els.showNextLyrics ? els.showNextLyrics.checked : false,
       remoteBtnLibrary: els.remoteBtnLibrary.checked,
       remoteBtnTimeline: els.remoteBtnTimeline.checked,
       remoteBtnArea: els.remoteBtnArea.checked,
@@ -1388,6 +1440,7 @@ document.addEventListener('DOMContentLoaded', () => {
       animation: els.settingsAnimation.value,
       textAlign: els.settingsTextAlign.value,
       textShadow: els.textShadow.checked,
+      outlineWidth: els.outlineWidth ? parseFloat(els.outlineWidth.value) || 0 : 0,
       pinColor: els.pinColor.value
     };
 

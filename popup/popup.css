@@ -1050,6 +1050,22 @@ kbd {
   cursor: pointer;
 }
 
+.select-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.select-hint {
+  display: none;
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.select-hint.visible {
+  display: inline;
+}
+
 /* 토글 스위치 */
 .toggle-switch {
   position: relative;

@@ -286,6 +286,7 @@
           <div class="setting-row">
             <label data-i18n="lbl_animation"></label>
             <div class="setting-control">
+              <span class="select-hint" id="animationHint" data-i18n="hint_animation_context"></span>
               <select id="settingsAnimation" class="select-input">
                 <option value="fade" selected data-i18n="anim_fade"></option>
                 <option value="slide" data-i18n="anim_slide"></option>
@@ -300,6 +301,13 @@
                 <input type="checkbox" id="textShadow" checked>
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_outline_width"></label>
+            <div class="setting-control">
+              <input type="range" id="outlineWidth" min="0" max="4" step="0.5" value="0" class="range-input">
+              <span class="range-value" id="outlineWidthValue">0px</span>
             </div>
           </div>
 
@@ -356,6 +364,24 @@
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="autoDetectSong" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_show_prev"></label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="showPrevLyrics">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_show_next"></label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="showNextLyrics">
                 <span class="toggle-slider"></span>
               </label>
             </div>

@@ -1,0 +1,58 @@
+🎧 Your perfect karaoke, right in your browser! 'Lyrics Overlay'
+
+Display the lyrics you want, beautifully, over YouTube, Twitch, SoundCloud, and any other streaming site! No complex video editing or heavy software — this is a powerful yet lightweight extension that overlays synced lyrics (subtitles) directly on top of your browser screen.
+
+
+✨ [Core Feature Guide]
+
+1. 🎵 SoundCloud Auto-Detect & Auto-Sync
+Playing a song on SoundCloud? The extension automatically finds matching lyrics in your library and syncs them to the exact playback position. Seeking the timeline or looping the track? The lyrics follow along seamlessly.
+
+2. 🎯 Free Positioning & Area Selection
+Place lyrics anywhere on the screen. Use 'Select Area 🎯' to snap the lyric box onto your video player, or use the 'Pin' feature to anchor it to the page so it stays put even when you scroll.
+
+3. 🕹️ Powerful 'Floating Remote'
+Control everything from a mini remote on-screen, without ever opening the popup!
+- Always-on (per-site setting): Turn on 'Remote ON' for your favorite sites and the remote appears automatically when you visit.
+- Platform-matched themes: The theme color adapts to the site — Default (green), YouTube (red), Twitch (purple), SoundCloud (orange).
+- Smart panels: Search your lyric library and check the timeline right from the remote; panels expand up or down based on the remote's position.
+- Custom buttons: Choose which buttons appear on the remote (Library, Timeline, Area Select, Play/Stop, Sync) in settings.
+- Minimize mode: Collapse the remote with one click so it never blocks your video.
+
+4. 📁 Effortless Library & Smart Search
+Add SRT subtitle files by drag & drop. Store countless lyrics and pull them up instantly with search. Results show a chip indicating which field matched — artist, title, or keyword — with the matching text highlighted.
+
+5. ☁️ Google Sheets Sync (Cloud Sync)
+Just enter a sheet URL and all lyric data syncs straight into your library. Set a row's D column to 'Auto Only' to register it as SoundCloud auto-detect exclusive — it won't appear in the manual library. If your library is empty, data loads automatically so you're ready right after installing.
+
+6. 🎨 Your Own Custom Design
+Supports automatic 3-line separation of Original / Pronunciation / Translation (styling adapts to the number of SRT lines). Customize font, color, background opacity, blur, text outline, animation, and lyric box alignment (left / center / right). Per-site design overrides are also supported.
+
+7. ⏱️ Fine Sync Adjustment
+Adjust timing in 0.1-second steps with the arrow keys (←, →), or 0.5-second steps with Shift + arrow keys — and fine-tune from the remote buttons too.
+
+8. 🔼🔽 Previous/Next Lyrics Preview
+Shows the previous and next lines, smaller, right above and below the current line — like a karaoke screen. The lyric box height stays fixed even when the line count changes or there's a blank gap, so it never jitters.
+
+9. 📜 Extra Conveniences
+- Auto-scroll: Long song titles or artist names scroll smoothly like a marquee.
+- End notice: Shows 🎵 Finish 🎵 on screen when the lyrics finish. (Toggle in settings.)
+- Progress bar: Displays a playback position bar at the bottom of the browser.
+- Backup / Restore: Export and import general settings and design settings independently as JSON files.
+
+
+📝 [What's New — v1.4.1]
+- 🛠 Fixed settings data import/export
+- 📖 Updated the Help page content
+
+📝 [What's New — v1.4.0]
+- 🔼🔽 Added previous/next lyrics preview: Shows the previous and next lines, smaller, above and below the current line. Lyric box height stays fixed even as line counts change.
+- ✨ Sharper fade/slide animation distinction: The two effects are now visually distinct.
+- 🐛 Other bug fixes: Fixed saved position drifting with left/right alignment when lyric length changes, and a label mix-up between text shadow and outline width.
+
+
+🔒 [Privacy & Security]
+'Lyrics Overlay' runs entirely in your browser's local environment (chrome.storage). Apart from data you add yourself, it never collects or transmits any personal information to external servers — 100% safe. (When using Google Sheets sync, it only accesses the sheet URL you provide.)
+
+📌 [Help & User Guide]
+For detailed usage, shortcuts, and backup instructions, click the [?] Help button in the extension popup.
