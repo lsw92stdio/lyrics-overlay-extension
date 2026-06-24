@@ -251,6 +251,15 @@
       loadRemoteLibrary(libList, e.target.value);
     });
 
+    // 검색창 키 입력이 호스트 페이지(유튜브/치지직 등)의 전역 단축키로 버블링되어
+    // 스페이스/화살표 등이 영상 재생/시킹으로 새버리는 문제 방지
+    ['keydown', 'keyup', 'keypress'].forEach(evt => {
+      searchInput.addEventListener(evt, (e) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      });
+    });
+
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         libPanel.classList.add('hidden');
@@ -1644,46 +1653,68 @@
   // ============================================================
   const GAP_BLANK_MS = 5000; // 이 시간 이상 비는 구간에서만 가운데를 비움
 
-  // 현재 시간 기준으로 이전/현재/다음 엔트리와 그 인덱스를 구한다.
-  //   활성 엔트리(t∈[start,end])가 있으면 그것이 current.
-  //   빈 구간이면:
-  //     - 간격이 GAP_BLANK_MS 미만이면 직전 가사를 가운데에 '유지'(깜빡임 방지)
-  //     - 간격이 GAP_BLANK_MS 이상이면 가운데를 비움(current=null)
-  //     - 마지막 가사 이후(다음 없음)도 직전 가사를 유지(종료 알림이 대체)
-  function findContextAtTime(entries, t) {
-    if (!entries || entries.length === 0) {
+  // 가사 엔트리 사이에 GAP_BLANK_MS 이상의 간주(공백)가 있으면 그 구간을 'gap' 항목으로
+  // 끼워넣어, 이전/현재/다음이 항상 이 시퀀스 상에서 한 칸씩만 이동하도록 한다.
+  // (짧은 공백은 별도 항목을 넣지 않고 기존처럼 직전 가사를 그대로 유지)
+  function buildContextSequence(entries) {
+    const seq = [];
+    for (let i = 0; i < entries.length; i++) {
+      seq.push({ type: 'lyric', entry: entries[i], start: entries[i].startTime, end: entries[i].endTime });
+      if (i < entries.length - 1) {
+        const gapDur = entries[i + 1].startTime - entries[i].endTime;
+        if (gapDur >= GAP_BLANK_MS) {
+          seq.push({ type: 'gap', start: entries[i].endTime, end: entries[i + 1].startTime });
+        }
+      }
+    }
+    return seq;
+  }
+
+  // state.lyrics 참조가 바뀔 때만 재생성 (곡 로드 시 항상 새 배열이 할당되므로
+  // 참조 비교만으로 캐시 무효화가 자동으로 동작함)
+  function getContextSequence() {
+    if (state._contextSeqSource !== state.lyrics) {
+      state._contextSeqSource = state.lyrics;
+      state._contextSeq = buildContextSequence(state.lyrics || []);
+    }
+    return state._contextSeq;
+  }
+
+  // 시퀀스 항목을 appendEntryLines가 그릴 수 있는 엔트리 형태로 변환 (간주는 빈 칸으로 표시)
+  function seqItemToEntry(item) {
+    if (!item || item.type === 'gap') return null;
+    return item.entry;
+  }
+
+  // 현재 시간 기준으로 이전/현재/다음 시퀀스 항목과 그 인덱스를 구한다.
+  //   활성 항목(t∈[start,end])이 있으면 그것이 current (가사 또는 간주 모두 동일하게 처리).
+  //   정확히 일치하는 항목이 없는 빈 구간이면:
+  //     - 짧은 공백(간주 항목이 없는 구간)이면 직전 항목을 가운데에 '유지'(깜빡임 방지)
+  //     - 마지막 항목 이후(다음 없음)도 직전 항목을 유지(종료 알림이 대체)
+  function findContextAtTime(seq, t) {
+    if (!seq || seq.length === 0) {
       return { prevIdx: -1, currIdx: -1, nextIdx: -1 };
     }
-    let currIdx = -1;
-    for (let i = entries.length - 1; i >= 0; i--) {
-      if (t >= entries[i].startTime && t <= entries[i].endTime) { currIdx = i; break; }
-    }
-    if (currIdx >= 0) {
-      return { prevIdx: currIdx - 1, currIdx, nextIdx: currIdx + 1 < entries.length ? currIdx + 1 : -1 };
+    for (let i = seq.length - 1; i >= 0; i--) {
+      if (t >= seq[i].start && t <= seq[i].end) {
+        return { prevIdx: i - 1, currIdx: i, nextIdx: i + 1 < seq.length ? i + 1 : -1 };
+      }
     }
 
-    // 빈 구간: 다음 엔트리 = 첫 startTime > t
+    // 정확히 일치하는 항목 없음 (짧은 공백 구간, 또는 첫 항목 이전)
     let nextIdx = -1;
-    for (let i = 0; i < entries.length; i++) {
-      if (entries[i].startTime > t) { nextIdx = i; break; }
+    for (let i = 0; i < seq.length; i++) {
+      if (seq[i].start > t) { nextIdx = i; break; }
     }
-    const prevIdx = nextIdx === -1 ? entries.length - 1 : nextIdx - 1;
+    const prevIdx = nextIdx === -1 ? seq.length - 1 : nextIdx - 1;
 
-    // 첫 가사 이전(직전 없음): 가운데 비우고 다음만 예고
+    // 첫 항목 이전(직전 없음): 가운데 비우고 다음만 예고
     if (prevIdx < 0) {
       return { prevIdx: -1, currIdx: -1, nextIdx };
     }
 
-    const gapEnd = nextIdx >= 0 ? entries[nextIdx].startTime : Infinity;
-    const gapDur = gapEnd - entries[prevIdx].endTime;
-
-    // 짧은 간격 또는 마지막 가사 이후 → 직전 가사를 가운데에 유지
-    if (gapDur < GAP_BLANK_MS || nextIdx === -1) {
-      return { prevIdx: prevIdx - 1, currIdx: prevIdx, nextIdx };
-    }
-
-    // 긴 간격(간주 등) → 가운데 비움
-    return { prevIdx, currIdx: -1, nextIdx };
+    // 짧은 공백 또는 마지막 항목 이후 → 직전 항목을 가운데에 유지
+    return { prevIdx: prevIdx - 1, currIdx: prevIdx, nextIdx };
   }
 
   const CONTEXT_SCALE = 0.62; // 이전/다음 가사 폰트 배율
@@ -1692,8 +1723,8 @@
   function updateContextDisplay(t) {
     if (!state.overlay) return;
     const { box, linesContainer, prevContext, nextContext } = state.overlay;
-    const entries = state.lyrics;
-    const ctx = findContextAtTime(entries, t);
+    const seq = getContextSequence();
+    const ctx = findContextAtTime(seq, t);
 
     const s = {
       ...state.settings,
@@ -1727,17 +1758,17 @@
       box.classList.add('entering');
     }
 
-    // 이전/다음 (축소) — 각각 설정에 따라 표시. 꺼진 쪽은 비움.
-    appendEntryLines(prevContext, (showPrev && ctx.prevIdx >= 0) ? entries[ctx.prevIdx] : null, CONTEXT_SCALE);
-    appendEntryLines(nextContext, (showNext && ctx.nextIdx >= 0) ? entries[ctx.nextIdx] : null, CONTEXT_SCALE);
+    // 이전/다음 (축소) — 각각 설정에 따라 표시. 꺼진 쪽/간주 구간은 비움.
+    appendEntryLines(prevContext, showPrev && ctx.prevIdx >= 0 ? seqItemToEntry(seq[ctx.prevIdx]) : null, CONTEXT_SCALE);
+    appendEntryLines(nextContext, showNext && ctx.nextIdx >= 0 ? seqItemToEntry(seq[ctx.nextIdx]) : null, CONTEXT_SCALE);
 
-    // 현재 (메인). 빈 구간이면 가운데 비움 (빈 슬롯 높이만 확보)
-    if (ctx.currIdx >= 0) {
-      const cur = entries[ctx.currIdx];
-      state.currentEntry = cur;
+    // 현재 (메인). 간주 구간이거나 표시할 게 전혀 없으면 가운데 비움 (빈 슬롯 높이만 확보).
+    const curItem = ctx.currIdx >= 0 ? seq[ctx.currIdx] : null;
+    if (curItem && curItem.type === 'lyric') {
+      state.currentEntry = curItem.entry;
       linesContainer.classList.remove('context-gap');
-      appendEntryLines(linesContainer, cur, 1);
-      if (state.overlay.timelineList) updateRemoteTimelineHighlight(cur);
+      appendEntryLines(linesContainer, curItem.entry, 1);
+      if (state.overlay.timelineList) updateRemoteTimelineHighlight(curItem.entry);
     } else {
       state.currentEntry = null;
       linesContainer.innerHTML = '';

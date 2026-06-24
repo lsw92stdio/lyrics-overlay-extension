@@ -6,7 +6,7 @@
 
 ## 1. 프로젝트 개요 (Project Overview)
 - **설명**: 웹 페이지 위에 SRT 파일 기반의 싱크 가사를 오버레이 형태로 표시해 주는 크롬 확장프로그램(Chrome Extension)입니다.
-- **버전**: Manifest V3 기반 (현재 `v1.2.2` 작업 중)
+- **버전**: Manifest V3 기반 (현재 `v1.4.1` 기준)
 - **핵심 목표**: 음악 및 스트리밍 사이트에서 사용자가 원하는 가사를 싱크에 맞춰 편리하게 볼 수 있도록 제공하며, 원문/발음/한국어 번역 등 최대 3줄 포맷을 지원합니다.
 
 ---
@@ -20,6 +20,7 @@
 - **SoundCloud Auto Only**: 구글 시트 D열에 `1`을 입력하면 해당 가사는 라이브러리 목록/검색/곡 수에서 제외되고 자동 감지로만 로드됨.
 - **사이트별 전용 테마**: 치지직(Chzzk), 유튜브(YouTube), 트위치(Twitch), 사운드클라우드(SoundCloud) 등 플랫폼에 맞는 플로팅 리모컨 테마(색상) 자동 적용.
 - **플로팅 리모컨**: 가사창과 별도로 재생/일시정지, 싱크 미세 조정, 타임라인 이동, 라이브러리 검색 및 선택 제어.
+- **이전/다음 가사 표시 (컨텍스트 모드)**: 현재 가사 위/아래에 작은 글씨로 이전·다음 가사를 미리보기. 가사 사이 `GAP_BLANK_MS`(5초) 이상의 간주(공백)는 시퀀스 상의 정식 항목('gap')으로 취급되어 이전/현재/다음이 항상 한 칸씩만 이동하며, 간주 구간은 빈 칸으로 표시됨 (`buildContextSequence`/`getContextSequence`/`findContextAtTime`).
 - **가사 라이브러리 및 구글 시트 연동**: 로컬 SRT 파일 등록 또는 구글 시트 URL 연동으로 가사 목록 관리 및 동기화. 시트 열 구성: A=Name, B=SRT Text, C=Keywords, D=Auto Only.
 - **다국어 UI**: 한국어/영어/일본어 자동 지원 (`_locales/`).
 - **내장 도움말 페이지**: `help/help.html` — 3개 언어 지원, 브라우저 언어 자동 감지.
@@ -142,6 +143,8 @@ lyrics-overlay-extension/
 | `renderLibrary()` | popup.js | 라이브러리 목록 렌더링 (autoOnly 필터 포함) |
 | `GENERAL_KEYS` / `DESIGN_KEYS` | popup.js | 설정 키 분류 상수 |
 | `isManualVisible(item)` | sheet-parser.js | autoOnly 가사 수동 목록 노출 여부 판별 |
+| `buildContextSequence(entries)` / `getContextSequence()` | content.js | 가사+간주(gap)를 하나의 시퀀스로 합쳐 캐싱 (`state.lyrics` 참조 비교로 무효화) |
+| `findContextAtTime(seq, t)` / `updateContextDisplay(t)` | content.js | 시퀀스 기준 이전/현재/다음 인덱스 계산 및 컨텍스트 모드 렌더링 |
 
 ### 주의사항
 - `container.getBoundingClientRect()`는 항상 전체 폭(`left:0, right:0`)을 반환하므로 가사창의 실제 위치가 필요하면 **`box.getBoundingClientRect()`** 를 사용해야 합니다.
@@ -150,3 +153,4 @@ lyrics-overlay-extension/
 - 고정(Pin) 모드(`siteState.isPinned`)에서는 호스트의 `position`이 `absolute`로 바뀌고 가사창 위치가 문서 좌표(`docTop`, `docCenterX`)를 기준으로 합니다. 뷰포트 기준 좌표와 혼용하지 않도록 주의.
 - `togglePinFromOverlay()`에서 핀 토글 시 `Object.assign(state.siteState, updates)`로 로컬 상태를 즉시 반영한 뒤 `restoreSavedPosition()` 호출해야 합니다. `updateSiteState()`는 비동기이므로 콜백 이전에 호출하면 구 좌표를 읽습니다.
 - `currentTrack`은 **전역 스토리지 키가 아닌** `siteStates[hostname].currentTrack`에 저장됩니다. 팝업 복원 시 `siteStates[activeHostname].currentTrack`을 우선 읽고, 없을 때만 전역 `currentTrack`을 fallback으로 사용하세요.
+- 리모컨 검색 input(`searchInput`)의 `keydown`/`keyup`/`keypress`는 `stopPropagation()`/`stopImmediatePropagation()`으로 호스트 페이지 버블링을 막습니다. closed Shadow DOM 내부 텍스트 입력 필드를 추가할 경우 동일하게 전파 차단이 필요합니다(그렇지 않으면 유튜브/치지직 등의 전역 단축키와 충돌).
