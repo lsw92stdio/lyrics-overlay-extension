@@ -1,2 +1,11 @@
 pack.ps1
 *.zip
+LAST_WORK.md
+LAST_WORK.bak.md
+PROJECT_SUMMARY.md
+store-assets/
+icons/gen-icons.js
+icons/preview.html
+.claude/
+.DS_Store
+Thumbs.db
