@@ -44,7 +44,11 @@
     // 외부 클럭(예: SoundCloud 오디오 currentTime)으로 가사를 구동할 때 사용.
     // null이면 기존처럼 내부 타이머(performance.now)로 동작.
     externalClock: null,
-    siteState: {} // 사이트별 상태 저장
+    externalSeek: null, // 외부 클럭 활성 시 타임라인 클릭 등 수동 시킹을 처리하는 함수 (ms) => void
+    siteState: {}, // 사이트별 상태 저장
+    currentLibraryItemId: null, // 현재 로드된 라이브러리 항목의 id (URL 동기화 등록에 필요)
+    _urlSyncActiveForVideo: false, // 현재 영상에 URL 기반 동기화 등록이 있으면 true (자동감지가 양보)
+    _urlSyncPaused: false // 🔓로 일시 해제한 상태면 true — 팔로워가 클럭/곡 전환을 건너뜀
   };
 
   // SoundCloud 등 미디어 사이트의 "현재 재생 위치(ms)" 제공자.
@@ -190,6 +194,9 @@
         <button class="remote-btn remote-btn-sync-minus" id="remote-sync-minus" title="${chrome.i18n.getMessage('remote_title_sync_minus')}">−</button>
         <div class="remote-sync-val" id="remote-sync-val" title="${chrome.i18n.getMessage('remote_title_sync_reset')}">0.0s</div>
         <button class="remote-btn remote-btn-sync-plus" id="remote-sync-plus" title="${chrome.i18n.getMessage('remote_title_sync_plus')}">+</button>
+        <div class="remote-divider remote-divider-url-sync"></div>
+        <button class="remote-btn remote-btn-url-sync" id="remote-url-sync" title="${chrome.i18n.getMessage('remote_title_url_sync')}">🔗</button>
+        <button class="remote-btn remote-btn-url-unlink" id="remote-url-unlink" title="${chrome.i18n.getMessage('remote_title_url_sync_unlink')}">🔒</button>
       </div>
       <button class="remote-btn remote-btn-minimize" id="remote-minimize-btn" title="${chrome.i18n.getMessage('remote_title_minimize')}" style="width: 20px;">›</button>
       <div class="remote-library-panel hidden" id="remote-library-panel">
@@ -223,6 +230,8 @@
     const btnMinus = remote.querySelector('#remote-sync-minus');
     const btnPlus = remote.querySelector('#remote-sync-plus');
     const syncVal = remote.querySelector('#remote-sync-val');
+    const btnUrlSync = remote.querySelector('#remote-url-sync');
+    const btnUrlUnlink = remote.querySelector('#remote-url-unlink');
     const btnMinimize = remote.querySelector('#remote-minimize-btn');
     const remoteControls = remote.querySelector('.remote-controls');
 
@@ -246,6 +255,12 @@
     btnMinus.addEventListener('click', () => { adjustSyncFromRemote(-100); });
     btnPlus.addEventListener('click', () => { adjustSyncFromRemote(100); });
     syncVal.addEventListener('click', () => { adjustSyncFromRemote(-state.syncOffset); });
+    if (btnUrlSync) {
+      btnUrlSync.addEventListener('click', () => { registerUrlSync(btnUrlSync); });
+    }
+    if (btnUrlUnlink) {
+      btnUrlUnlink.addEventListener('click', () => { unlinkUrlSync(btnUrlUnlink); });
+    }
 
     searchInput.addEventListener('input', (e) => {
       loadRemoteLibrary(libList, e.target.value);
@@ -629,7 +644,8 @@
     state.lyrics = parsed;
     state.syncOffset = 0;
     state.trackName = item.name;
-    
+    state.currentLibraryItemId = item.id || null;
+
     // 팝업 복원용 트랙 정보 갱신 (사이트별로 저장)
     updateSiteState({ currentTrack: {
       name: state.trackName,
@@ -743,6 +759,101 @@
     state.overlay.syncVal.textContent = (s > 0 ? '+' : '') + s.toFixed(1) + 's';
   }
 
+  // 리모컨 🔗 버튼: "지금 화면에 보이는 가사 위치"와 "영상의 현재 재생 위치"를 고정해
+  // item.videoSyncs에 등록한다. URL_SYNC_SITES(content.js 하단)를 그대로 재사용.
+  function registerUrlSync(btnEl) {
+    const site = URL_SYNC_SITES.find((s) => s.match(window.location.hostname));
+    if (!site) {
+      alert(chrome.i18n.getMessage('alert_url_sync_unsupported_site'));
+      return;
+    }
+
+    const video = document.querySelector(site.videoSelector);
+    if (!video || !isVodVideo(video)) {
+      alert(chrome.i18n.getMessage('alert_url_sync_live_unsupported'));
+      return;
+    }
+
+    const videoId = site.extractVideoId();
+    if (!videoId) {
+      alert(chrome.i18n.getMessage('alert_url_sync_live_unsupported'));
+      return;
+    }
+
+    if (!state.currentLibraryItemId || !state.lyrics || state.lyrics.length === 0) {
+      alert(chrome.i18n.getMessage('alert_url_sync_no_library_item'));
+      return;
+    }
+
+    const lyricsElapsed = state.externalClock
+      ? Math.max(0, state.externalClock.getTimeMs()) + state.syncOffset
+      : performance.now() - state.startTimestamp + state.syncOffset;
+    const offsetMs = Math.round(video.currentTime * 1000 - lyricsElapsed);
+    const canonicalUrl = site.buildCanonicalUrl(videoId);
+
+    // lyricsElapsed에 이미 state.syncOffset이 흡수되어 offsetMs에 반영됐으므로, 다음 틱부터
+    // 메인 루프가 externalClock에 이 값을 또 더해 이중 적용하지 않도록 0으로 리셋한다.
+    state.syncOffset = 0;
+    updateRemoteSyncDisplay();
+
+    // 팔로워의 다음 1초 틱을 기다리지 않고 즉시 새 오프셋으로 클럭을 갱신한다 —
+    // 저장소 라운드트립/다음 틱 타이밍에 의존하지 않아 화면이 끊기거나 비는 일이 없다.
+    state.externalClock = { getTimeMs: () => video.currentTime * 1000 - offsetMs };
+    state.externalSeek = (ms) => { video.currentTime = (ms + offsetMs) / 1000; };
+    state._urlSyncPaused = false;
+
+    chrome.storage.local.get(['savedLyrics'], (data) => {
+      const savedLyrics = data.savedLyrics || [];
+      const idx = savedLyrics.findIndex((l) => l.id === state.currentLibraryItemId);
+      if (idx < 0) {
+        alert(chrome.i18n.getMessage('alert_url_sync_no_library_item'));
+        return;
+      }
+      const item = savedLyrics[idx];
+      const videoSyncs = item.videoSyncs ? item.videoSyncs.slice() : [];
+      const existingIdx = videoSyncs.findIndex(
+        (s) => extractVideoIdFromStoredUrl(site, s.url) === videoId
+      );
+      if (existingIdx >= 0) videoSyncs[existingIdx] = { url: canonicalUrl, offsetMs };
+      else videoSyncs.push({ url: canonicalUrl, offsetMs });
+
+      savedLyrics[idx] = { ...item, videoSyncs };
+      chrome.storage.local.set({ savedLyrics });
+
+      // 🔓(해제) 버튼을 다시 🔒(잠김)로 — 동기화가 다시 걸렸음을 아이콘으로 표시
+      if (state.overlay && state.overlay.remote) {
+        const unlinkBtn = state.overlay.remote.querySelector('#remote-url-unlink');
+        if (unlinkBtn) unlinkBtn.textContent = '🔒';
+      }
+
+      if (btnEl) {
+        btnEl.classList.add('synced-flash');
+        setTimeout(() => btnEl.classList.remove('synced-flash'), 600);
+      }
+    });
+  }
+
+  // 리모컨 🔓 버튼: 지금 따라가고 있는 외부 클럭(URL 동기화든 제목 자동감지든)을 내부
+  // 타이머로 매끄럽게 전환해 일시적으로 "연동 해제"한다. 현재 보이는 가사 위치는 그대로
+  // 유지되며, 이후 −/+ 버튼이나 타임라인 클릭으로 자유롭게 미세조정할 수 있다.
+  function unlinkUrlSync(btnEl) {
+    if (!state.externalClock) {
+      alert(chrome.i18n.getMessage('alert_url_sync_nothing_to_unlink'));
+      return;
+    }
+    const elapsedNoOffset = Math.max(0, state.externalClock.getTimeMs());
+    state.startTimestamp = performance.now() - elapsedNoOffset;
+    state.externalClock = null;
+    state.externalSeek = null;
+    state._urlSyncPaused = true;
+
+    if (btnEl) {
+      btnEl.textContent = '🔓'; // 잠금 해제 상태를 아이콘으로 표시
+      btnEl.classList.add('unlinked-flash');
+      setTimeout(() => btnEl.classList.remove('unlinked-flash'), 600);
+    }
+  }
+
   // ============================================================
   // 인라인 CSS
   // ============================================================
@@ -788,7 +899,7 @@
 
       /* 이전/다음 가사 컨텍스트 - 메인보다 작고 채도/명도 낮게 */
       .lyrics-context {
-        opacity: 0.5;
+        opacity: var(--lyrics-context-opacity, 0.5);
         filter: saturate(0.55);
         line-height: 1.25;
         margin: 0;
@@ -1011,6 +1122,16 @@
         padding: 0 4px;
       }
       .remote-sync-val:hover { color: var(--theme-color); }
+      .remote-btn-url-sync.synced-flash {
+        background: rgba(0, 210, 106, 0.4);
+        color: #00d26a;
+        transition: background 0.15s, color 0.15s;
+      }
+      .remote-btn-url-unlink.unlinked-flash {
+        background: rgba(255, 170, 0, 0.4);
+        color: #ffaa00;
+        transition: background 0.15s, color 0.15s;
+      }
 
       /* 리모컨 노래 목록 패널 */
       .remote-library-panel, .remote-timeline-panel {
@@ -1427,6 +1548,10 @@
     const outlineWidth = Math.max(0, Number(settings.outlineWidth) || 0);
     box.style.setProperty('--lyric-stroke', outlineWidth + 'px');
 
+    // 이전/다음 가사 미리보기 투명도
+    const contextOpacity = Math.max(0.1, Math.min(1, (Number(settings.contextOpacity) ?? 50) / 100));
+    box.style.setProperty('--lyrics-context-opacity', contextOpacity);
+
     // 이전/다음 가사 표시 ON일 때 박스 가로/세로 크기 고정 재계산
     recalcBoxDimensions();
     // 너비 변경에 따른 중앙 정렬 위치 보정
@@ -1466,6 +1591,9 @@
       setVisible('.remote-btn-sync-minus', settings.remoteBtnSync       !== false);
       setVisible('#remote-sync-val',       settings.remoteBtnSync       !== false);
       setVisible('.remote-btn-sync-plus',  settings.remoteBtnSync       !== false);
+      setVisible('.remote-divider-url-sync', settings.remoteBtnUrlSync  !== false);
+      setVisible('.remote-btn-url-sync',   settings.remoteBtnUrlSync    !== false);
+      setVisible('.remote-btn-url-unlink', settings.remoteBtnUrlSync    !== false);
     }
 
     // 리모컨 가사 목록이 열려있다면 새로고침 (표시 언어 설정 반영)
@@ -1717,8 +1845,6 @@
     return { prevIdx: prevIdx - 1, currIdx: prevIdx, nextIdx };
   }
 
-  const CONTEXT_SCALE = 0.62; // 이전/다음 가사 폰트 배율
-
   // 컨텍스트(이전/현재/다음) 표시 갱신. tick 루프에서 이전/다음 중 하나라도 ON일 때 사용.
   function updateContextDisplay(t) {
     if (!state.overlay) return;
@@ -1730,6 +1856,7 @@
       ...state.settings,
       ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
     };
+    const contextScale = (s.contextFontScale ?? 62) / 100;
     const showPrev = s.showPrevLyrics === true;
     const showNext = s.showNextLyrics === true;
 
@@ -1759,8 +1886,8 @@
     }
 
     // 이전/다음 (축소) — 각각 설정에 따라 표시. 꺼진 쪽/간주 구간은 비움.
-    appendEntryLines(prevContext, showPrev && ctx.prevIdx >= 0 ? seqItemToEntry(seq[ctx.prevIdx]) : null, CONTEXT_SCALE);
-    appendEntryLines(nextContext, showNext && ctx.nextIdx >= 0 ? seqItemToEntry(seq[ctx.nextIdx]) : null, CONTEXT_SCALE);
+    appendEntryLines(prevContext, showPrev && ctx.prevIdx >= 0 ? seqItemToEntry(seq[ctx.prevIdx]) : null, contextScale);
+    appendEntryLines(nextContext, showNext && ctx.nextIdx >= 0 ? seqItemToEntry(seq[ctx.nextIdx]) : null, contextScale);
 
     // 현재 (메인). 간주 구간이거나 표시할 게 전혀 없으면 가운데 비움 (빈 슬롯 높이만 확보).
     const curItem = ctx.currIdx >= 0 ? seq[ctx.currIdx] : null;
@@ -1788,6 +1915,7 @@
       ...state.settings,
       ...(state.siteState && state.siteState.styleOverrides ? state.siteState.styleOverrides : {})
     };
+    const contextScale = (s.contextFontScale ?? 62) / 100;
     const showPrev = s.showPrevLyrics === true;
     const showNext = s.showNextLyrics === true;
 
@@ -1813,7 +1941,7 @@
     const shapeSpecs = getLineSpecs({ lines: new Array(maxLines).fill('') }, s);
     const gapTotal = 4 * Math.max(0, shapeSpecs.length - 1);
     const heightMain = shapeSpecs.reduce((sum, sp) => sum + sp.fontSize * LINE_STYLE[sp.className].lineHeight, 0) + gapTotal;
-    const heightContext = shapeSpecs.reduce((sum, sp) => sum + sp.fontSize * CONTEXT_SCALE * LINE_STYLE[sp.className].lineHeight, 0) + gapTotal;
+    const heightContext = shapeSpecs.reduce((sum, sp) => sum + sp.fontSize * contextScale * LINE_STYLE[sp.className].lineHeight, 0) + gapTotal;
 
     box.style.setProperty('--lyrics-min-h-main', heightMain + 'px');
     box.style.setProperty('--lyrics-min-h-context', heightContext + 'px');
@@ -1892,11 +2020,17 @@
   }
 
   function play() {
+    const isNewOverlay = !state.overlay;
     createOverlay();
-    // 설정은 페이지 로드 시에만 적용, 여기서 다시 로드하면 패널 참조가 귀쳐짐
+    // 설정은 보통 페이지 로드 시에만 적용(여기서 다시 로드하면 패널 참조가 귀쳐짐).
+    // 단, overlay가 이번에 새로 생성됐다면(예: 리모컨 off 상태에서 자동 감지로 첫 매칭된 경우)
+    // 디자인 설정이 한 번도 적용되지 않은 상태이므로 한 번만 적용해준다.
+    // applySettings()가 리모컨 표시 여부(사이트별 remoteEnabledSites)도 함께 처리한다.
+    if (isNewOverlay) {
+      applySettings(state.settings);
+    }
 
     if (state.overlay && state.overlay.btnToggle) state.overlay.btnToggle.textContent = '⏸';
-    if (state.overlay && state.overlay.remote) state.overlay.remote.classList.remove('hidden');
 
     if (state.isPaused) {
       const pauseDuration = performance.now() - (state.startTimestamp + state.pausedAt);
@@ -1952,6 +2086,8 @@
     state.endNoticeShown = false;
     state.currentEntry = null;
     state.externalClock = null;
+    state.externalSeek = null;
+    state._urlSyncPaused = false;
     state._lastContextSig = null;
     if (state.animFrameId) {
       cancelAnimationFrame(state.animFrameId);
@@ -1967,7 +2103,11 @@
       state.overlay.linesContainer.classList.remove('context-gap');
       state.overlay.progressFill.style.width = '0%';
       if (state.overlay.btnToggle) state.overlay.btnToggle.textContent = '▶';
-      
+      if (state.overlay.remote) {
+        const unlinkBtn = state.overlay.remote.querySelector('#remote-url-unlink');
+        if (unlinkBtn) unlinkBtn.textContent = '🔒';
+      }
+
       // 사이트별 리모컨 ON 상태면 숨기지 않음
       const hostname = window.location.hostname;
       const siteEnabled = state.settings && state.settings.remoteEnabledSites && state.settings.remoteEnabledSites[hostname] === true;
@@ -1985,7 +2125,11 @@
       state.hasJumpedBeforeStart = true;
     }
     
-    state.startTimestamp = performance.now() - timeMs;
+    if (state.externalSeek) {
+      state.externalSeek(timeMs); // 외부 클럭(영상) 위치를 직접 옮김 — 다음 틱부터 자연히 반영됨
+    } else {
+      state.startTimestamp = performance.now() - timeMs;
+    }
     if (state.isPaused) {
       state.pausedAt = timeMs;
       const entry = SRTParser.findEntryAtTime(state.lyrics, timeMs);
@@ -2550,6 +2694,7 @@
         state.lyrics = parsed;
         state.syncOffset = 0;
         state.trackName = message.trackName || '';
+        state.currentLibraryItemId = message.itemId || null;
         createOverlay();
         // overlay가 이미 있을 때는 applySettings만 재실행 (패널 참조 유지)
         if (state.settings) applySettings(state.settings);
@@ -2671,9 +2816,12 @@
     if (changes.settings && changes.settings.newValue) {
       const newSettings = changes.settings.newValue;
       const shouldShowRemote = newSettings.remoteEnabledSites && newSettings.remoteEnabledSites[currentHostname] === true;
-      // 이미 overlay가 있거나 리모컨을 켜야 하는 경우만 처리
+      // state.settings는 항상 최신으로 갱신(자동 감지 등 오버레이 없이도 도는 로직이 참조함).
+      // DOM/CSS를 만지는 무거운 적용은 overlay가 있거나 리모컨을 켜야 하는 경우만 수행.
       if (state.overlay || shouldShowRemote) {
         applySettings(newSettings);
+      } else {
+        state.settings = newSettings;
       }
     }
     
@@ -2694,6 +2842,49 @@
       }
     }
   });
+
+  // ============================================================
+  // 곡 제목/가수 매칭 (SoundCloud/YouTube 등 자동 감지 공용)
+  //   사이트 무관 순수 함수 — 정규화 후 라이브러리 항목과 점수 매칭.
+  // ============================================================
+
+  // 매칭용 정규화: 괄호 부가설명/부가어 제거 후 영문·숫자·한글·가나·한자만 남김
+  //   ※ NFC 정규화 필수: SoundCloud 제목은 분해형(NFD, 예: か+結합탁점)으로 와서
+  //      완성형(NFC) 라이브러리 이름과 코드포인트가 달라 그대로는 매칭 실패함.
+  function normalize(s) {
+    return (s || '')
+      .normalize('NFC')
+      .toLowerCase()
+      .replace(/\(.*?\)|\[.*?\]|【.*?】/g, ' ')
+      .replace(/official|audio|lyric video|lyrics?|m\/?v|feat\.?|ft\.?|prod\.?/g, ' ')
+      .replace(/[^0-9a-z가-힣぀-ヿ一-鿿]/g, '')
+      .trim();
+  }
+
+  function matchLibrary(meta, list) {
+    const nTitle = normalize(meta.title);
+    const nArtist = normalize(meta.artist);
+    if (!nTitle) return null;
+
+    let best = null, bestScore = 0;
+    for (const item of list) {
+      const p = item.parsed || {};
+      const titles = [p.titleOrig, p.titleKo, item.name].filter(Boolean).map(normalize);
+      const artists = [p.artistOrig, p.artistKo].filter(Boolean).map(normalize);
+      const nameNorm = normalize(item.name);
+
+      let score = 0;
+      if (titles.some(t => t && (t === nTitle || t.includes(nTitle) || nTitle.includes(t)))) score += 2;
+      else if (nameNorm.includes(nTitle)) score += 1;
+
+      if (nArtist && artists.some(a => a && (a.includes(nArtist) || nArtist.includes(a)))) score += 1;
+      else if (nArtist && nameNorm.includes(nArtist)) score += 0.5;
+
+      if (score > bestScore) { bestScore = score; best = item; }
+    }
+    // 제목이 확실히 일치(2점)할 때만 채택해 오매칭 방지
+    return bestScore >= 2 ? best : null;
+  }
 
   // ============================================================
   // SoundCloud 자동 싱크
@@ -2804,44 +2995,6 @@
       return null;
     }
 
-    // 매칭용 정규화: 괄호 부가설명/부가어 제거 후 영문·숫자·한글·가나·한자만 남김
-    //   ※ NFC 정규화 필수: SoundCloud 제목은 분해형(NFD, 예: か+結합탁점)으로 와서
-    //      완성형(NFC) 라이브러리 이름과 코드포인트가 달라 그대로는 매칭 실패함.
-    function normalize(s) {
-      return (s || '')
-        .normalize('NFC')
-        .toLowerCase()
-        .replace(/\(.*?\)|\[.*?\]|【.*?】/g, ' ')
-        .replace(/official|audio|lyric video|lyrics?|m\/?v|feat\.?|ft\.?|prod\.?/g, ' ')
-        .replace(/[^0-9a-z가-힣぀-ヿ一-鿿]/g, '')
-        .trim();
-    }
-
-    function matchLibrary(meta, list) {
-      const nTitle = normalize(meta.title);
-      const nArtist = normalize(meta.artist);
-      if (!nTitle) return null;
-
-      let best = null, bestScore = 0;
-      for (const item of list) {
-        const p = item.parsed || {};
-        const titles = [p.titleOrig, p.titleKo, item.name].filter(Boolean).map(normalize);
-        const artists = [p.artistOrig, p.artistKo].filter(Boolean).map(normalize);
-        const nameNorm = normalize(item.name);
-
-        let score = 0;
-        if (titles.some(t => t && (t === nTitle || t.includes(nTitle) || nTitle.includes(t)))) score += 2;
-        else if (nameNorm.includes(nTitle)) score += 1;
-
-        if (nArtist && artists.some(a => a && (a.includes(nArtist) || nArtist.includes(a)))) score += 1;
-        else if (nArtist && nameNorm.includes(nArtist)) score += 0.5;
-
-        if (score > bestScore) { bestScore = score; best = item; }
-      }
-      // 제목이 확실히 일치(2점)할 때만 채택해 오매칭 방지
-      return bestScore >= 2 ? best : null;
-    }
-
     function stopFollowing() {
       if (!following) return;
       following = false;
@@ -2877,9 +3030,9 @@
       // 메모리 캐시 우선, 없으면 storage에서 읽기 (첫 초기화 전 등 드문 상황)
       const tryMatch = (all) => {
         const item = matchLibrary(meta, all);
-        if (!item) { log('매칭 실패 — SoundCloud:', meta, '| 후보 곡 수:', all.length); return; }
+        if (!item) { log('매칭 실패 | 가수 :', meta.artist, '| 제목 :', meta.title); return; }
 
-        log('매칭 성공 →', item.name, '| 현재 위치(ms):', getPositionMs());
+        log('매칭 성공 | 가수 :', meta.artist, '| 제목 :', meta.title, '| 현재 위치 :', getPositionMs());
         state.externalClock = { getTimeMs: () => getPositionMs() || 0 };
         following = true;
         followKey = key;
@@ -2907,6 +3060,320 @@
   }
 
   // ============================================================
+  // 표준 <video> 기반 사이트 자동 감지/싱크 (YouTube, YouTube Music 등)
+  //   SoundCloud와 달리 표준 <video> 엘리먼트의 currentTime을 직접 읽을 수 있어
+  //   진행바 DOM 스크래핑이 필요 없다. 사이트별 차이(호스트 판별, 제목/가수 DOM
+  //   선택자)만 AUTO_DETECT_VIDEO_SITES에 데이터로 분리하고, 나머지(라이브러리 캐시,
+  //   매칭, 추적 상태, 폴링)는 createVideoAutoDetectSync()가 공용으로 처리한다.
+  //   ※ 새 사이트 추가 시: 이 배열에 항목 하나 추가 + defaultSettings.autoDetectVideoSites
+  //     에 같은 id로 키 추가 + popup에 체크박스 한 줄 추가만 하면 됨(동기화 로직 재작성 불필요).
+  // ============================================================
+  // VOD 판별: 메타데이터 로드 후 duration이 유한한 양수일 때만 true (라이브=Infinity).
+  // initVideoSync()와 URL 기반 동기화(createUrlSyncFollower) 양쪽에서 공유.
+  function isVodVideo(v) {
+    if (!v || v.readyState < 1) return false;
+    if (!isFinite(v.duration)) return false; // 라이브
+    return v.duration > 0;
+  }
+
+  const AUTO_DETECT_VIDEO_SITES = [
+    {
+      id: 'youtube',
+      match: (host) => host.includes('youtube.com') && host !== 'music.youtube.com',
+      // 검색/홈/추천 피드에는 마우스오버 시 자동재생되는 미리보기 영상이 있어, 그걸
+      // 곡으로 오인하지 않도록 실제 시청 페이지(/watch, /shorts)에서만 동작시킨다.
+      isWatchPage: (path) => path.startsWith('/watch') || path.startsWith('/shorts/'),
+      videoSelector: '#movie_player video, ytd-player video',
+      titleSelectors: ['#title h1 yt-formatted-string', 'h1.ytd-watch-metadata yt-formatted-string'],
+      artistSelectors: [],
+      splitArtistFromTitle: true, // "아티스트 - 제목" 형태로 보이면 분리 시도
+    },
+    {
+      id: 'youtubemusic',
+      match: (host) => host === 'music.youtube.com',
+      isWatchPage: () => true, // YT Music은 항상 플레이어 바가 떠 있어 페이지 구분 불필요
+      videoSelector: 'video',
+      titleSelectors: ['.title.ytmusic-player-bar', 'ytmusic-player-bar .title'],
+      artistSelectors: ['.byline.ytmusic-player-bar', 'ytmusic-player-bar .byline'],
+      splitArtistFromTitle: false, // 아티스트가 별도 DOM에 있어 제목 분리 추정 불필요
+    },
+  ];
+
+  function createVideoAutoDetectSync(site) {
+    return function init() {
+      if (!site.match(window.location.hostname)) return;
+
+      const VAD_DEBUG = true; // 진단용 로그 (필요 없어지면 false로)
+      const log = (...a) => { if (VAD_DEBUG) console.log(`[LyricsOverlay/${site.id}]`, ...a); };
+
+      let followKey = null, following = false, lastMetaKey = '';
+      let cachedLibrary = null;
+      chrome.storage.local.get(['savedLyrics'], (d) => { cachedLibrary = d.savedLyrics || []; });
+      chrome.storage.onChanged.addListener((changes) => {
+        if (changes.savedLyrics) cachedLibrary = changes.savedLyrics.newValue || [];
+      });
+
+      function getPositionMs() {
+        const v = document.querySelector(site.videoSelector);
+        return v ? v.currentTime * 1000 : 0;
+      }
+
+      // 제목/가수 추출: MediaSession 우선(가장 신뢰도 높음), 실패 시 site.titleSelectors/
+      // artistSelectors DOM 폴백. 아티스트 DOM이 없는 사이트(일반 유튜브)는 제목에
+      // "아티스트 - 제목" 구분자가 있으면 분리 시도.
+      function getMetadata() {
+        try {
+          const m = navigator.mediaSession && navigator.mediaSession.metadata;
+          if (m && m.title) return { title: m.title, artist: m.artist || '' };
+        } catch (e) {}
+
+        const titleEl = site.titleSelectors.map((sel) => document.querySelector(sel)).find(Boolean);
+        if (!titleEl) return null;
+        const raw = (titleEl.textContent || '').trim();
+        if (!raw) return null;
+
+        if (site.artistSelectors.length) {
+          const artistEl = site.artistSelectors.map((sel) => document.querySelector(sel)).find(Boolean);
+          return { title: raw, artist: artistEl ? (artistEl.textContent || '').trim() : '' };
+        }
+        if (site.splitArtistFromTitle) {
+          const m2 = raw.match(/^(.+?)\s*[-–]\s*(.+)$/);
+          if (m2) return { title: m2[2].trim(), artist: m2[1].trim() };
+        }
+        return { title: raw, artist: '' };
+      }
+
+      function stopFollowing() {
+        if (!following) return;
+        following = false;
+        stopPlayback();
+      }
+
+      function handleTick() {
+        // 이 영상에 URL 기반 동기화(수동 등록)가 있으면 제목 자동감지는 양보한다.
+        // (주의: stopFollowing()/stopPlayback()을 호출하면 안 됨 — 곡이 끝난 게 아니라
+        // URL 동기화 팔로워가 그 자리를 이어받아 정상적으로 재생 중이므로, 여기서 전체
+        // 정지를 호출하면 방금 등록한 동기화까지 같이 멈춰버린다. 로컬 추적 상태만 내려놓는다.)
+        if (state._urlSyncActiveForVideo) {
+          following = false;
+          followKey = null;
+          return;
+        }
+
+        const sites = state.settings && state.settings.autoDetectVideoSites;
+        if (!(sites && sites[site.id] === true)) {
+          if (following) { stopFollowing(); followKey = null; }
+          return;
+        }
+
+        // 검색/홈/추천 피드 등 시청 페이지가 아닌 곳에서는 동작하지 않음 — 마우스오버 시
+        // 자동재생되는 미리보기 영상의 mediaSession 메타데이터를 곡으로 오인하는 것 방지.
+        if (!site.isWatchPage(window.location.pathname)) {
+          if (following) { stopFollowing(); followKey = null; }
+          lastMetaKey = '';
+          return;
+        }
+
+        const meta = getMetadata();
+        const key = meta ? normalize(meta.title) + '|' + normalize(meta.artist) : '';
+
+        if (following && key && key === followKey) return;
+        if (following && key !== followKey) { stopFollowing(); followKey = null; }
+        if (!meta) { lastMetaKey = ''; return; }
+        if (key === lastMetaKey) return;
+        lastMetaKey = key;
+
+        const tryMatch = (all) => {
+          const item = matchLibrary(meta, all);
+          if (!item) { log('매칭 실패 | 가수 :', meta.artist, '| 제목 :', meta.title); return; }
+
+          log('매칭 성공 | 가수 :', meta.artist, '| 제목 :', meta.title, '| 현재 위치 :', getPositionMs());
+          state.externalClock = { getTimeMs: () => getPositionMs() || 0 };
+          // 제목 매칭 모드는 오프셋이 없음 — 가사 시간 = 영상 시간 그대로 대입
+          state.externalSeek = (ms) => {
+            const v = document.querySelector(site.videoSelector);
+            if (v) v.currentTime = ms / 1000;
+          };
+          following = true;
+          followKey = key;
+          playFromRemoteLibrary(item);
+        };
+
+        if (cachedLibrary !== null) tryMatch(cachedLibrary);
+        else chrome.storage.local.get(['savedLyrics'], (data) => { cachedLibrary = data.savedLyrics || []; tryMatch(cachedLibrary); });
+      }
+
+      const intervalId = setInterval(() => {
+        if (!chrome.runtime || !chrome.runtime.id) { clearInterval(intervalId); return; }
+        try { handleTick(); } catch (e) { /* 컨텍스트 일시 오류 등은 무시 */ }
+      }, 1000);
+      log('자동 싱크 활성화');
+    };
+  }
+
+  // ============================================================
+  // URL 기반 영상-가사 싱크 동기화 (유튜브 / 치지직 VOD만, 라이브 제외)
+  //   리모컨의 🔗 버튼으로 "영상의 현재 위치 = 지금 보이는 가사 위치"를 한 번 등록해두면,
+  //   같은 영상(videoId)을 다시 방문할 때 자동으로 해당 가사를 불러와 영상 위치를 따라가게
+  //   한다. 한 영상 안에 여러 곡이 등록될 수 있고, 등록된 구간 밖에서는 findEntryAtTime이
+  //   null을 반환하는 기존 동작 그대로 가사가 비워진다(별도 구현 불필요).
+  //   제목 기반 자동감지(createVideoAutoDetectSync)보다 우선한다 — state._urlSyncActiveForVideo
+  //   플래그로 신호를 보낸다.
+  // ============================================================
+  const URL_SYNC_SITES = [
+    {
+      id: 'youtube',
+      match: (host) => host.includes('youtube.com') && host !== 'music.youtube.com',
+      videoSelector: '#movie_player video, ytd-player video',
+      extractVideoId: () => {
+        const v = new URLSearchParams(window.location.search).get('v');
+        if (v) return v;
+        const m = window.location.pathname.match(/^\/shorts\/([\w-]+)/);
+        return m ? m[1] : null;
+      },
+      buildCanonicalUrl: (id) => `https://www.youtube.com/watch?v=${id}`,
+    },
+    {
+      id: 'chzzk',
+      match: (host) => host.includes('chzzk.naver.com'),
+      videoSelector: '.webplayer-internal-video, video',
+      extractVideoId: () => {
+        if (window.location.pathname.startsWith('/live/')) return null; // 라이브 명시적 제외
+        const m = window.location.pathname.match(/^\/video\/(\d+)/);
+        return m ? m[1] : null;
+      },
+      buildCanonicalUrl: (id) => `https://chzzk.naver.com/video/${id}`,
+    },
+  ];
+
+  // 등록된 url에서 videoId를 추출(저장은 항상 buildCanonicalUrl 형식이므로 같은 site의
+  // extractVideoId 정규식을 그 문자열에 대해 다시 실행하는 방식으로 재사용한다).
+  function extractVideoIdFromStoredUrl(site, storedUrl) {
+    if (site.id === 'youtube') {
+      const m = storedUrl.match(/[?&]v=([\w-]+)/);
+      return m ? m[1] : null;
+    }
+    if (site.id === 'chzzk') {
+      const m = storedUrl.match(/\/video\/(\d+)/);
+      return m ? m[1] : null;
+    }
+    return null;
+  }
+
+  function createUrlSyncFollower(site) {
+    return function init() {
+      if (!site.match(window.location.hostname)) return;
+
+      let cachedLibrary = null;
+      const parsedCache = new Map(); // itemId -> parsed entries
+      let activeItemId = null;
+
+      chrome.storage.local.get(['savedLyrics'], (d) => { cachedLibrary = d.savedLyrics || []; });
+      chrome.storage.onChanged.addListener((changes) => {
+        if (changes.savedLyrics) {
+          cachedLibrary = changes.savedLyrics.newValue || [];
+          parsedCache.clear(); // 자막이 수정됐을 수 있으므로 캐시 전체 무효화
+        }
+      });
+
+      function getParsedEntries(item) {
+        if (!parsedCache.has(item.id)) {
+          parsedCache.set(item.id, SRTParser.parse(item.srtText || ''));
+        }
+        return parsedCache.get(item.id);
+      }
+
+      function handleTick() {
+        const video = document.querySelector(site.videoSelector);
+        if (!video || !isVodVideo(video)) {
+          state._urlSyncActiveForVideo = false;
+          return;
+        }
+
+        const videoId = site.extractVideoId();
+        if (!videoId) {
+          state._urlSyncActiveForVideo = false;
+          return;
+        }
+
+        if (!cachedLibrary) { state._urlSyncActiveForVideo = false; return; }
+
+        // 현재 videoId와 매칭되는 모든 (item, offsetMs) 후보 수집 (등록 순서 유지)
+        const candidates = [];
+        for (const item of cachedLibrary) {
+          if (!item.videoSyncs || !item.videoSyncs.length) continue;
+          for (const sync of item.videoSyncs) {
+            if (extractVideoIdFromStoredUrl(site, sync.url) === videoId) {
+              candidates.push({ item, offsetMs: sync.offsetMs });
+            }
+          }
+        }
+
+        if (candidates.length === 0) {
+          state._urlSyncActiveForVideo = false;
+          return;
+        }
+
+        state._urlSyncActiveForVideo = true;
+
+        const videoTimeMs = video.currentTime * 1000;
+        // 구간이 겹치면 먼저 등록된(배열 순서상 앞선) 후보가 항상 이긴다 (의도된 동작).
+        let matched = null;
+        for (const candidate of candidates) {
+          const entries = getParsedEntries(candidate.item);
+          if (!entries.length) continue;
+          const localTime = videoTimeMs - candidate.offsetMs;
+          if (localTime >= entries[0].startTime && localTime <= entries[entries.length - 1].endTime) {
+            matched = candidate;
+            break;
+          }
+        }
+
+        // 🔓로 일시 해제된 상태면 곡 전환/클럭 갱신을 모두 건너뛴다 — 사용자가 지금
+        // 보고 있는 곡과 위치를 그대로 유지한 채 수동으로 미세조정할 수 있게 함.
+        if (state._urlSyncPaused) return;
+
+        if (matched && matched.item.id !== activeItemId) {
+          activeItemId = matched.item.id;
+          const entries = getParsedEntries(matched.item);
+          state.lyrics = entries;
+          state.trackName = matched.item.name;
+          state.currentLibraryItemId = matched.item.id;
+          state.syncOffset = 0;
+
+          // play()보다 먼저 외부 클럭을 설정해, 곡 전환 직후 첫 틱부터 영상의 실제
+          // 위치(오프셋 반영)를 정확히 반영하게 한다.
+          const fixedOffsetMs = matched.offsetMs;
+          state.externalClock = { getTimeMs: () => video.currentTime * 1000 - fixedOffsetMs };
+          state.externalSeek = (ms) => { video.currentTime = (ms + fixedOffsetMs) / 1000; };
+
+          createOverlay();
+          if (state.settings) applySettings(state.settings);
+          recalcBoxDimensions();
+          reapplyAlignForContentChange();
+          refreshRemoteTimelineForNewTrack();
+          // playFromRemoteLibrary/제목 자동감지와 동일하게 조건 없이 호출 — 이미 재생
+          // 중이어도 play()가 매번 currentEntry/lastElapsed/_lastContextSig 등을 깨끗이
+          // 초기화해야 이전 곡(또는 다른 추적 경로)의 잔여 상태가 새 곡에 섞여 보이지 않음.
+          play();
+        } else if (matched) {
+          // 같은 곡을 계속 따라가는 중 — 오프셋만 최신값으로 갱신(곡 전환 없이).
+          const fixedOffsetMs = matched.offsetMs;
+          state.externalClock = { getTimeMs: () => video.currentTime * 1000 - fixedOffsetMs };
+          state.externalSeek = (ms) => { video.currentTime = (ms + fixedOffsetMs) / 1000; };
+        }
+        // matched가 없으면(등록된 구간 밖) 아무 것도 바꾸지 않는다 — 이미 로드된 곡의
+        // findEntryAtTime이 범위 밖이면 자연히 빈 화면이 되므로 별도 처리 불필요.
+      }
+
+      const intervalId = setInterval(() => {
+        if (!chrome.runtime || !chrome.runtime.id) { clearInterval(intervalId); return; }
+        try { handleTick(); } catch (e) { /* 컨텍스트 일시 오류 등은 무시 */ }
+      }, 1000);
+    };
+  }
+
+  // ============================================================
   // 비디오 일시정지/재생 연동 (치지직 VOD + 유튜브)
   //   영상을 멈추면 가사도 멈추고, 다시 재생하면 가사도 이어서 재생.
   //   ※ 위치 동기화가 아니라 play/pause '상태'만 가사에 미러링한다.
@@ -2924,13 +3391,6 @@
     const findVideo = () =>
       document.querySelector('video.webplayer-internal-video')
       ?? document.querySelector('video');
-
-    // VOD 판별: 메타데이터 로드 후 duration이 유한한 양수일 때만 true (라이브=Infinity)
-    const isVodVideo = (v) => {
-      if (!v || v.readyState < 1) return false;
-      if (!isFinite(v.duration)) return false; // 라이브
-      return v.duration > 0;
-    };
 
     // 영상 → 가사 단방향 미러링. 가드로 중복/오작동 방지.
     const onVideoPause = () => {
@@ -2972,6 +3432,8 @@
   // 초기화
   loadSettings();
   initSoundCloudSync();
+  AUTO_DETECT_VIDEO_SITES.forEach((site) => createVideoAutoDetectSync(site)());
+  URL_SYNC_SITES.forEach((site) => createUrlSyncFollower(site)());
   initVideoSync();
 
 })();

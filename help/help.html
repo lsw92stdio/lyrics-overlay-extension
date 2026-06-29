@@ -463,11 +463,12 @@
         <span class="sheet-col-badge"><b>B</b> SRT 텍스트</span>
         <span class="sheet-col-badge"><b>C</b> 키워드 (선택)</span>
         <span class="sheet-col-badge"><b>D</b> Auto Only (선택)</span>
+        <span class="sheet-col-badge"><b>E</b> 동기화된 영상 (선택)</span>
       </div>
       <div class="sheet-preview">
         <table>
           <thead>
-            <tr><th>A — 곡 이름</th><th>B — SRT 텍스트</th><th>C — 키워드</th><th>D — Auto Only</th></tr>
+            <tr><th>A — 곡 이름</th><th>B — SRT 텍스트</th><th>C — 키워드</th><th>D — Auto Only</th><th>E — 동기화된 영상</th></tr>
           </thead>
           <tbody>
             <tr>
@@ -475,12 +476,14 @@
               <td class="col-b">1&#10;00:00:03,000 --> …&#10;夕暮れの詩\N저녁노을의 시</td>
               <td class="col-c">미라이, 유구레</td>
               <td class="col-d"></td>
+              <td class="col-e"></td>
             </tr>
             <tr>
               <td class="col-a">Nova Drift - Starfall</td>
               <td class="col-b">1&#10;00:00:01,000 --> …&#10;가사 텍스트</td>
               <td class="col-c">키워드</td>
               <td class="col-d"><span class="badge-auto">1</span></td>
+              <td class="col-e">https://www.youtube.com/watch?v=ABC123|45000</td>
             </tr>
           </tbody>
         </table>
@@ -488,8 +491,12 @@
       <ul style="margin-top:8px;">
         <li><strong>D열이 비어있으면</strong> 일반 가사 — 라이브러리 목록·검색·곡 수 모두 표시</li>
         <li><strong>D열에 <code>1</code></strong>을 입력하면 Auto Only — 목록·검색에는 숨겨지고 <strong>자동 감지로만</strong> 로드됨 (SoundCloud 등)</li>
+        <li><strong>E열</strong>은 리모컨의 🔗(영상-가사 싱크 동기화) 버튼으로 등록한 영상 정보 —
+          <code>URL|오프셋(ms)</code> 형식이며, 한 곡이 여러 영상에 등록될 수 있으면
+          <code>;</code>(세미콜론)으로 구분해 여러 개를 한 칸에 나열함 (예:
+          <code>url1|1000; url2|-500</code>). 비워두면 기존 등록 내용이 그대로 유지됨.</li>
       </ul>
-      <div class="tip"><strong>💡 팁:</strong> 라이브러리 탭의 <strong>시트 양식 복사</strong> 버튼을 누르면 현재 저장된 모든 가사가 A·B·C·D 4열 형식으로 클립보드에 복사됩니다. 시트에 <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>만 하면 됩니다.</div>
+      <div class="tip"><strong>💡 팁:</strong> 라이브러리 탭의 <strong>시트 양식 복사</strong> 버튼을 누르면 현재 저장된 모든 가사가 A~E 5열 형식으로 클립보드에 복사됩니다. 시트에 <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>만 하면 됩니다.</div>
     </div>
 
     <div class="sub">
@@ -703,11 +710,12 @@ Second line</span></pre>
         <span class="sheet-col-badge"><b>B</b> SRT Text</span>
         <span class="sheet-col-badge"><b>C</b> Keywords (opt.)</span>
         <span class="sheet-col-badge"><b>D</b> Auto Only (opt.)</span>
+        <span class="sheet-col-badge"><b>E</b> Video Syncs (opt.)</span>
       </div>
       <div class="sheet-preview">
         <table>
           <thead>
-            <tr><th>A — Track Name</th><th>B — SRT Text</th><th>C — Keywords</th><th>D — Auto Only</th></tr>
+            <tr><th>A — Track Name</th><th>B — SRT Text</th><th>C — Keywords</th><th>D — Auto Only</th><th>E — Video Syncs</th></tr>
           </thead>
           <tbody>
             <tr>
@@ -715,12 +723,14 @@ Second line</span></pre>
               <td class="col-b">1&#10;00:00:03,000 --> …&#10;夕暮れの詩\NPoem of the evening glow</td>
               <td class="col-c">mirai, yugure</td>
               <td class="col-d"></td>
+              <td class="col-e"></td>
             </tr>
             <tr>
               <td class="col-a">Nova Drift - Starfall</td>
               <td class="col-b">1&#10;00:00:01,000 --> …&#10;lyric text here</td>
               <td class="col-c">keyword</td>
               <td class="col-d"><span class="badge-auto">1</span></td>
+              <td class="col-e">https://www.youtube.com/watch?v=ABC123|45000</td>
             </tr>
           </tbody>
         </table>
@@ -728,8 +738,13 @@ Second line</span></pre>
       <ul style="margin-top:8px;">
         <li><strong>Column D empty</strong> — normal lyric, visible everywhere in the library</li>
         <li><strong>Column D = <code>1</code></strong> — Auto Only: hidden from the list &amp; search, loaded only via <strong>auto-detection</strong> (e.g. SoundCloud)</li>
+        <li><strong>Column E</strong> holds video sync registrations made via the remote control's
+          🔗 (Register Video-Lyrics Sync) button — format is <code>URL|offsetMs</code>, and since
+          one song can be registered to multiple videos, separate multiple entries with
+          <code>;</code> in the same cell (e.g. <code>url1|1000; url2|-500</code>). Leave it blank
+          to keep whatever is already registered locally.</li>
       </ul>
-      <div class="tip"><strong>💡 Tip:</strong> Click <strong>Copy Sheet Format</strong> in the Library tab to copy all saved lyrics to the clipboard in the correct 4-column format. Just paste (<span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>) into the sheet.</div>
+      <div class="tip"><strong>💡 Tip:</strong> Click <strong>Copy Sheet Format</strong> in the Library tab to copy all saved lyrics to the clipboard in the correct 5-column format. Just paste (<span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span>) into the sheet.</div>
     </div>
 
     <div class="sub">
@@ -943,11 +958,12 @@ Second line</span></pre>
         <span class="sheet-col-badge"><b>B</b> SRTテキスト</span>
         <span class="sheet-col-badge"><b>C</b> キーワード（任意）</span>
         <span class="sheet-col-badge"><b>D</b> Auto Only（任意）</span>
+        <span class="sheet-col-badge"><b>E</b> 動画シンク（任意）</span>
       </div>
       <div class="sheet-preview">
         <table>
           <thead>
-            <tr><th>A — 曲名</th><th>B — SRTテキスト</th><th>C — キーワード</th><th>D — Auto Only</th></tr>
+            <tr><th>A — 曲名</th><th>B — SRTテキスト</th><th>C — キーワード</th><th>D — Auto Only</th><th>E — 動画シンク</th></tr>
           </thead>
           <tbody>
             <tr>
@@ -955,12 +971,14 @@ Second line</span></pre>
               <td class="col-b">1&#10;00:00:03,000 --> …&#10;夕暮れの詩\Nゆうぐれのうた</td>
               <td class="col-c">みらい、ゆうぐれ</td>
               <td class="col-d"></td>
+              <td class="col-e"></td>
             </tr>
             <tr>
               <td class="col-a">Nova Drift - Starfall</td>
               <td class="col-b">1&#10;00:00:01,000 --> …&#10;歌詞テキスト</td>
               <td class="col-c">キーワード</td>
               <td class="col-d"><span class="badge-auto">1</span></td>
+              <td class="col-e">https://www.youtube.com/watch?v=ABC123|45000</td>
             </tr>
           </tbody>
         </table>
@@ -968,8 +986,12 @@ Second line</span></pre>
       <ul style="margin-top:8px;">
         <li><strong>D列が空欄</strong> — 通常の歌詞、ライブラリ一覧・検索・曲数すべてに表示</li>
         <li><strong>D列に <code>1</code></strong> を入力 — Auto Only：一覧・検索には表示されず、<strong>自動検出でのみ</strong>読み込まれる（SoundCloud等）</li>
+        <li><strong>E列</strong>はリモコンの🔗（動画-歌詞シンク同期登録）ボタンで登録した動画情報 —
+          <code>URL|オフセット(ms)</code> 形式で、1曲が複数の動画に登録される場合は
+          <code>;</code>（セミコロン）で区切って複数記載（例: <code>url1|1000; url2|-500</code>）。
+          空欄のままにすると既存の登録内容が保持されます。</li>
       </ul>
-      <div class="tip"><strong>💡 ヒント:</strong> ライブラリタブの <strong>シート形式コピー</strong> ボタンを押すと、保存済みの全歌詞がA・B・C・D列の4列形式でクリップボードにコピーされます。シートに <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span> で貼り付けるだけです。</div>
+      <div class="tip"><strong>💡 ヒント:</strong> ライブラリタブの <strong>シート形式コピー</strong> ボタンを押すと、保存済みの全歌詞がA〜E列の5列形式でクリップボードにコピーされます。シートに <span style="white-space:nowrap"><kbd>Ctrl</kbd>+<kbd>V</kbd></span> で貼り付けるだけです。</div>
     </div>
 
     <div class="sub">

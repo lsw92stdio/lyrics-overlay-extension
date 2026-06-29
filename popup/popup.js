@@ -64,6 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
     bgOpacityValue: document.getElementById('bgOpacityValue'),
     bgBlur: document.getElementById('bgBlur'),
     bgBlurValue: document.getElementById('bgBlurValue'),
+    contextFontScale: document.getElementById('contextFontScale'),
+    contextFontScaleValue: document.getElementById('contextFontScaleValue'),
+    contextOpacity: document.getElementById('contextOpacity'),
+    contextOpacityValue: document.getElementById('contextOpacityValue'),
     libraryDisplayLang: document.getElementById('libraryDisplayLang'),
     settingsAnimation: document.getElementById('settingsAnimation'),
     animationHint: document.getElementById('animationHint'),
@@ -80,7 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btnExportDesign: document.getElementById('btnExportDesign'),
     showEndNotice: document.getElementById('showEndNotice'),
     showProgressBar: document.getElementById('showProgressBar'),
-    autoDetectSong: document.getElementById('autoDetectSong'),
+    btnManageAutoDetect: document.getElementById('btnManageAutoDetect'),
+    autoDetectManagerModal: document.getElementById('autoDetectManagerModal'),
+    autoDetectSiteList: document.getElementById('autoDetectSiteList'),
+    btnCloseAutoDetectManager: document.getElementById('btnCloseAutoDetectManager'),
     remotePanelAutoClose: document.getElementById('remotePanelAutoClose'),
     remotePanelAutoCloseSec: document.getElementById('remotePanelAutoCloseSec'),
     showPrevLyrics: document.getElementById('showPrevLyrics'),
@@ -95,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     remoteBtnArea: document.getElementById('remoteBtnArea'),
     remoteBtnPlayStop: document.getElementById('remoteBtnPlayStop'),
     remoteBtnSync: document.getElementById('remoteBtnSync'),
+    remoteBtnUrlSync: document.getElementById('remoteBtnUrlSync'),
     
     // 디자인 커스텀
     designTargetSelect: document.getElementById('designTargetSelect'),
@@ -127,6 +135,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 도움말 버튼
   document.getElementById('btnHelp').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('help/help.html') });
+  });
+
+  // 라이브러리 정보 관리(제목/가수/번호/키워드/Auto Only 전체 편집) 페이지
+  document.getElementById('btnManageLibraryMeta').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('library-editor/library-editor.html') });
   });
 
   // ============================================================
@@ -637,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const quoteIfNeeded = (v) => (v.includes('\n') || v.includes('\r') || v.includes('"') || v.includes('\t')) ? `"${v}"` : v;
 
-    let tsvContent = 'Name\tSRT Text\tKeywords\tAuto Only\n';
+    let tsvContent = 'Name\tSRT Text\tKeywords\tAuto Only\tVideo Syncs\n';
     sortedList.forEach(item => {
       // 앞의 순번(숫자와 공백) 제거
       let cleanName = item.name.replace(/^\d+\s*/, '');
@@ -650,9 +663,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const autoOnlyStr = item.autoOnly ? '1' : '';
+      const videoSyncsStr = SheetParser.stringifyVideoSyncs(item.videoSyncs).replace(/"/g, '""');
 
       // 줄바꿈/탭/따옴표가 있는 경우 쌍따옴표로 감쌈 (구글 시트 붙여넣기 규격)
-      tsvContent += `${quoteIfNeeded(name)}\t${quoteIfNeeded(srtText)}\t${quoteIfNeeded(keywordsStr)}\t${autoOnlyStr}\n`;
+      tsvContent += `${quoteIfNeeded(name)}\t${quoteIfNeeded(srtText)}\t${quoteIfNeeded(keywordsStr)}\t${autoOnlyStr}\t${quoteIfNeeded(videoSyncsStr)}\n`;
     });
 
     try {
@@ -957,13 +971,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const parseFileName = SheetParser.parseFileName;
 
-  function buildStandardName(parsed) {
-    if (!parsed.artist && !parsed.title) {
-      return parsed.original.endsWith('.srt') ? parsed.original : parsed.original + '.srt';
-    }
-    const baseName = `${parsed.artist} - ${parsed.title}.srt`;
-    return parsed.index ? `${parsed.index} ${baseName}` : baseName;
-  }
+  const buildStandardName = SheetParser.buildStandardName;
 
   async function addToLibrary(name, srtText) {
     const data = await getStorageData('savedLyrics');
@@ -1042,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadFromLibrary(item) {
     const name = item.name.replace(/\.srt$/i, '');
-    const response = await sendToContent({ type: 'LOAD_LYRICS', srtText: item.srtText, trackName: name });
+    const response = await sendToContent({ type: 'LOAD_LYRICS', srtText: item.srtText, trackName: name, itemId: item.id });
     if (response?.success) {
       currentLyricsData = { name, count: response.count, duration: response.duration, srtText: item.srtText, parsed: item.parsed };
       updatePlayerUI(); updateSyncDisplay(0);
@@ -1193,17 +1201,19 @@ document.addEventListener('DOMContentLoaded', () => {
     showEndNotice: true,
     showProgressBar: true,
     autoDetectSong: true,
+    autoDetectVideoSites: { youtube: false, youtubemusic: false },
     pinColor: '#FFFFFF',
     remoteEnabledSites: {},
     remoteBtnLibrary: true, remoteBtnTimeline: true, remoteBtnArea: true,
-    remoteBtnPlayStop: true, remoteBtnSync: true,
+    remoteBtnPlayStop: true, remoteBtnSync: true, remoteBtnUrlSync: true,
     remotePanelAutoClose: true, remotePanelAutoCloseSec: 5,
     showPrevLyrics: false, showNextLyrics: false,
-    outlineWidth: 0
+    outlineWidth: 0,
+    contextFontScale: 62, contextOpacity: 50
   };
 
-  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync', 'remotePanelAutoClose', 'remotePanelAutoCloseSec', 'showPrevLyrics', 'showNextLyrics'];
-  const DESIGN_KEYS = ['origFontSize', 'origColor', 'showOriginal', 'pronFontSize', 'pronColor', 'showPronunciation', 'mainFontSize', 'mainColor', 'bgColor', 'bgOpacity', 'bgBlur', 'textShadow', 'outlineWidth', 'animation', 'textAlign', 'pinColor', 'fontFamily'];
+  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'autoDetectVideoSites', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync', 'remoteBtnUrlSync', 'remotePanelAutoClose', 'remotePanelAutoCloseSec', 'showPrevLyrics', 'showNextLyrics'];
+  const DESIGN_KEYS = ['origFontSize', 'origColor', 'showOriginal', 'pronFontSize', 'pronColor', 'showPronunciation', 'mainFontSize', 'mainColor', 'bgColor', 'bgOpacity', 'bgBlur', 'textShadow', 'outlineWidth', 'animation', 'textAlign', 'pinColor', 'fontFamily', 'contextFontScale', 'contextOpacity'];
 
   function getSettings() { return new Promise(resolve => { chrome.storage.local.get(['settings'], data => { resolve({ ...defaultSettings, ...(data.settings || {}) }); }); }); }
   function saveSettings(settings) { return chrome.storage.local.set({ settings }); }
@@ -1271,6 +1281,10 @@ document.addEventListener('DOMContentLoaded', () => {
     els.bgOpacityValue.textContent = Math.round((d.bgOpacity ?? 0.45) * 100) + '%';
     els.bgBlur.value = d.bgBlur ?? 4;
     els.bgBlurValue.textContent = (d.bgBlur ?? 4) + 'px';
+    els.contextFontScale.value = d.contextFontScale ?? 62;
+    els.contextFontScaleValue.textContent = (d.contextFontScale ?? 62) + '%';
+    els.contextOpacity.value = d.contextOpacity ?? 50;
+    els.contextOpacityValue.textContent = (d.contextOpacity ?? 50) + '%';
     els.settingsAnimation.value = d.animation || 'fade';
     els.settingsTextAlign.value = d.textAlign || 'center';
     els.textShadow.checked = d.textShadow !== false;
@@ -1283,7 +1297,6 @@ document.addEventListener('DOMContentLoaded', () => {
     els.libraryDisplayLang.value = s.libraryDisplayLang || 'both';
     els.showEndNotice.checked = s.showEndNotice !== false;
     els.showProgressBar.checked = s.showProgressBar !== false;
-    els.autoDetectSong.checked = s.autoDetectSong !== false;
     if (els.remotePanelAutoClose) els.remotePanelAutoClose.checked = s.remotePanelAutoClose !== false;
     if (els.remotePanelAutoCloseSec) els.remotePanelAutoCloseSec.value = s.remotePanelAutoCloseSec ?? 5;
     if (els.showPrevLyrics) els.showPrevLyrics.checked = s.showPrevLyrics === true;
@@ -1296,6 +1309,7 @@ document.addEventListener('DOMContentLoaded', () => {
     els.remoteBtnArea.checked = s.remoteBtnArea !== false;
     els.remoteBtnPlayStop.checked = s.remoteBtnPlayStop !== false;
     els.remoteBtnSync.checked = s.remoteBtnSync !== false;
+    els.remoteBtnUrlSync.checked = s.remoteBtnUrlSync !== false;
 
     const sites = s.remoteEnabledSites || {};
     const isEnabled = popupCurrentHostname ? sites[popupCurrentHostname] === true : false;
@@ -1312,6 +1326,52 @@ document.addEventListener('DOMContentLoaded', () => {
     if (els.googleSheetUrl) els.googleSheetUrl.value = s.googleSheetUrl || '';
   }
 
+  // 자동 감지 지원 사이트 목록 — 새 사이트 추가 시 이 배열에 항목 하나만 추가하면
+  // "자동 감지 관리" 모달에 자동으로 한 줄이 생긴다(popup.html 수정 불필요).
+  // get/patch로 저장 형태(SoundCloud는 단일 불리언, YouTube류는 dict)가 달라도 동일하게 다룸.
+  const AUTO_DETECT_SITES = [
+    {
+      id: 'soundcloud',
+      labelKey: 'lbl_site_soundcloud',
+      get: (s) => s.autoDetectSong !== false,
+      patch: (checked) => ({ autoDetectSong: checked }),
+    },
+    {
+      id: 'youtube',
+      labelKey: 'lbl_site_youtube',
+      get: (s) => !!(s.autoDetectVideoSites && s.autoDetectVideoSites.youtube),
+      patch: (checked, s) => ({ autoDetectVideoSites: { ...(s.autoDetectVideoSites || {}), youtube: checked } }),
+    },
+    {
+      id: 'youtubemusic',
+      labelKey: 'lbl_site_youtube_music',
+      get: (s) => !!(s.autoDetectVideoSites && s.autoDetectVideoSites.youtubemusic),
+      patch: (checked, s) => ({ autoDetectVideoSites: { ...(s.autoDetectVideoSites || {}), youtubemusic: checked } }),
+    },
+  ];
+
+  async function renderAutoDetectManager() {
+    const s = await getSettings();
+    els.autoDetectSiteList.innerHTML = '';
+    AUTO_DETECT_SITES.forEach((site) => {
+      const row = document.createElement('div');
+      row.className = 'setting-row';
+      row.innerHTML = `
+        <label>${I18n.t(site.labelKey)}</label>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input type="checkbox" ${site.get(s) ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>`;
+      row.querySelector('input').addEventListener('change', async (e) => {
+        const cur = await getSettings();
+        await saveSettings({ ...cur, ...site.patch(e.target.checked, cur) });
+      });
+      els.autoDetectSiteList.appendChild(row);
+    });
+  }
+
   function bindSettingsInputs() {
     els.origFontSize.addEventListener('input', () => { els.origFontSizeValue.textContent = els.origFontSize.value + 'px'; });
     els.pronFontSize.addEventListener('input', () => { els.pronFontSizeValue.textContent = els.pronFontSize.value + 'px'; });
@@ -1323,6 +1383,8 @@ document.addEventListener('DOMContentLoaded', () => {
     els.pinColor.addEventListener('input', () => { els.pinColorValue.textContent = els.pinColor.value; });
     els.bgOpacity.addEventListener('input', () => { els.bgOpacityValue.textContent = els.bgOpacity.value + '%'; });
     els.bgBlur.addEventListener('input', () => { els.bgBlurValue.textContent = els.bgBlur.value + 'px'; });
+    els.contextFontScale.addEventListener('input', () => { els.contextFontScaleValue.textContent = els.contextFontScale.value + '%'; });
+    els.contextOpacity.addEventListener('input', () => { els.contextOpacityValue.textContent = els.contextOpacity.value + '%'; });
     if (els.outlineWidth) els.outlineWidth.addEventListener('input', () => { els.outlineWidthValue.textContent = els.outlineWidth.value + 'px'; });
     els.libraryDisplayLang.addEventListener('change', () => {
       renderLibrary();
@@ -1374,6 +1436,14 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
     
+    els.btnManageAutoDetect.addEventListener('click', async () => {
+      await renderAutoDetectManager();
+      els.autoDetectManagerModal.classList.add('visible');
+    });
+    els.btnCloseAutoDetectManager.addEventListener('click', () => {
+      els.autoDetectManagerModal.classList.remove('visible');
+    });
+
     // 디자인 적용 대상 선택 및 덮어쓰기 토글 시 UI 리로드
     els.designTargetSelect.addEventListener('change', () => {
       loadSettingsUI(false);
@@ -1397,7 +1467,6 @@ document.addEventListener('DOMContentLoaded', () => {
       googleSheetUrl: els.googleSheetUrl ? els.googleSheetUrl.value.trim() : '',
       showEndNotice: els.showEndNotice.checked,
       showProgressBar: els.showProgressBar.checked,
-      autoDetectSong: els.autoDetectSong.checked,
       remotePanelAutoClose: els.remotePanelAutoClose ? els.remotePanelAutoClose.checked : true,
       remotePanelAutoCloseSec: els.remotePanelAutoCloseSec
         ? Math.max(1, parseInt(els.remotePanelAutoCloseSec.value, 10) || 5)
@@ -1409,6 +1478,7 @@ document.addEventListener('DOMContentLoaded', () => {
       remoteBtnArea: els.remoteBtnArea.checked,
       remoteBtnPlayStop: els.remoteBtnPlayStop.checked,
       remoteBtnSync: els.remoteBtnSync.checked,
+      remoteBtnUrlSync: els.remoteBtnUrlSync.checked,
       remoteEnabledSites: enabledSites
     };
 
@@ -1437,6 +1507,8 @@ document.addEventListener('DOMContentLoaded', () => {
       mainFontSize: parseInt(els.mainFontSize.value), mainColor: els.mainColor.value,
       bgColor: els.bgColor.value, bgOpacity: parseInt(els.bgOpacity.value) / 100,
       bgBlur: parseInt(els.bgBlur.value),
+      contextFontScale: parseInt(els.contextFontScale.value),
+      contextOpacity: parseInt(els.contextOpacity.value),
       animation: els.settingsAnimation.value,
       textAlign: els.settingsTextAlign.value,
       textShadow: els.textShadow.checked,

@@ -1066,6 +1066,12 @@ kbd {
   display: inline;
 }
 
+.setting-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: -4px 0 8px 0;
+}
+
 /* 토글 스위치 */
 .toggle-switch {
   position: relative;
@@ -1260,6 +1266,17 @@ kbd {
 
 .custom-modal.visible .custom-modal-content {
   transform: translateY(0);
+}
+
+.auto-detect-modal-content {
+  width: 90%;
+  max-width: 340px;
+  text-align: left;
+}
+
+.auto-detect-modal-content h3 {
+  margin: 0 0 12px 0;
+  text-align: center;
 }
 
 .custom-modal-content p {

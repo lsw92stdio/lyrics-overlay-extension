@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title data-i18n="title_subtitle_editor"></title>
+<link rel="stylesheet" href="subtitle-editor.css">
+</head>
+<body>
+  <div class="options-container">
+    <div class="options-header">
+      <h1 id="trackTitle">&nbsp;</h1>
+      <div class="subtitle" data-i18n="title_subtitle_editor"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 data-i18n="lbl_bulk_sync"></h2>
+      </div>
+      <div class="toolbar">
+        <div class="tool-group">
+          <label data-i18n="lbl_bulk_sync"></label>
+          <input type="number" id="bulkSyncMs" step="50" value="0">
+          <button id="btnApplySync" class="btn-secondary" data-i18n="btn_apply"></button>
+        </div>
+        <div class="tool-group">
+          <label data-i18n="lbl_bulk_paste"></label>
+          <select id="pasteTarget">
+            <option value="orig" data-i18n="sec_original"></option>
+            <option value="pron" data-i18n="sec_pronunciation"></option>
+            <option value="trans" data-i18n="sec_korean"></option>
+          </select>
+          <button id="btnCopyColumn" class="btn-secondary" data-i18n="btn_copy"></button>
+          <button id="btnApplyPaste" class="btn-secondary" data-i18n="btn_apply"></button>
+        </div>
+        <textarea id="pasteArea" rows="4" data-i18n-placeholder="hint_bulk_paste"></textarea>
+      </div>
+      <div class="table-container">
+        <table id="entriesTable">
+          <thead>
+            <tr>
+              <th data-i18n="th_sub_start"></th>
+              <th data-i18n="th_sub_end"></th>
+              <th data-i18n="sec_original"></th>
+              <th data-i18n="sec_pronunciation"></th>
+              <th data-i18n="sec_korean"></th>
+            </tr>
+          </thead>
+          <tbody id="entriesList"></tbody>
+        </table>
+      </div>
+      <div class="footer-actions">
+        <button id="btnCancel" class="btn-secondary" data-i18n="btn_cancel"></button>
+        <button id="btnSave" class="btn-primary" data-i18n="btn_save"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pastePreviewModal" class="custom-modal">
+    <div class="custom-modal-content paste-preview-content">
+      <h3 data-i18n="title_paste_preview"></h3>
+      <p class="setting-hint" data-i18n="hint_paste_preview"></p>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="th_sub_before"></th>
+              <th data-i18n="th_sub_after"></th>
+            </tr>
+          </thead>
+          <tbody id="pastePreviewList"></tbody>
+        </table>
+      </div>
+      <div class="custom-modal-actions">
+        <button id="btnPastePreviewCancel" class="btn-secondary" data-i18n="btn_cancel"></button>
+        <button id="btnPastePreviewConfirm" class="btn-primary" data-i18n="btn_confirm"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../lib/srt-parser.js"></script>
+  <script src="../lib/i18n.js"></script>
+  <script src="subtitle-editor.js"></script>
+</body>
+</html>

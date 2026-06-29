@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title data-i18n="ext_name"></title>
+  <link rel="stylesheet" href="library-editor.css">
+</head>
+<body>
+  <div class="options-container">
+    <header class="options-header">
+      <h1 data-i18n="ext_name"></h1>
+      <span class="subtitle" data-i18n="title_library_editor"></span>
+    </header>
+
+    <main class="options-main">
+      <div class="card">
+        <div class="card-header">
+          <h2 data-i18n="title_library_editor"></h2>
+          <div class="card-header-actions">
+            <input type="text" id="searchInput" class="search-input" data-i18n-placeholder="lib_search_ph">
+            <button id="btnRefresh" class="btn-secondary" data-i18n="opt_btn_refresh"></button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table id="libraryTable">
+            <thead>
+              <tr>
+                <th data-i18n="th_lib_index"></th>
+                <th data-i18n="th_lib_title_orig"></th>
+                <th data-i18n="th_lib_title_ko"></th>
+                <th data-i18n="th_lib_artist_orig"></th>
+                <th data-i18n="th_lib_artist_ko"></th>
+                <th data-i18n="th_lib_keywords"></th>
+                <th data-i18n="th_lib_videosyncs"></th>
+                <th data-i18n="th_lib_autoonly"></th>
+                <th data-i18n="th_lib_actions"></th>
+              </tr>
+            </thead>
+            <tbody id="libraryList">
+              <!-- rows injected by JS -->
+            </tbody>
+          </table>
+          <div id="emptyState" class="empty-state hidden" data-i18n="lib_empty"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../lib/sheet-parser.js"></script>
+  <script src="../lib/i18n.js"></script>
+  <script src="library-editor.js"></script>
+</body>
+</html>

@@ -112,6 +112,7 @@
         <div class="library-header-actions">
           <button class="btn-export" id="btnReloadSheet" data-i18n="lib_sheet_sync" data-i18n-title="lib_sheet_sync"></button>
           <button class="btn-export" id="btnExportSheetFormat" data-i18n="lib_sheet_copy" data-i18n-title="lib_sheet_copy"></button>
+          <button class="btn-export" id="btnManageLibraryMeta" data-i18n="lib_manage_meta" data-i18n-title="lib_manage_meta"></button>
           <button class="btn-add" id="btnAddLibrary" data-i18n="lib_add"></button>
         </div>
       </div>
@@ -270,6 +271,25 @@
               <span class="range-value" id="bgBlurValue">4px</span>
             </div>
           </div>
+          </div>
+
+          <div class="settings-group">
+            <h3 data-i18n="sec_context_design"></h3>
+            <p class="setting-hint" data-i18n="hint_context_design"></p>
+            <div class="setting-row">
+              <label data-i18n="lbl_context_font_scale"></label>
+              <div class="setting-control">
+                <input type="range" id="contextFontScale" min="30" max="100" value="62" class="range-input">
+                <span class="range-value" id="contextFontScaleValue">62%</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <label data-i18n="lbl_context_opacity"></label>
+              <div class="setting-control">
+                <input type="range" id="contextOpacity" min="10" max="100" value="50" class="range-input">
+                <span class="range-value" id="contextOpacityValue">50%</span>
+              </div>
+            </div>
           </div> <!-- End of designControlsWrapper -->
         </div> <!-- End of designSettingsSection -->
 
@@ -360,12 +380,9 @@
             </div>
           </div>
           <div class="setting-row">
-            <label data-i18n="lbl_auto_detect"></label>
+            <label data-i18n="lbl_auto_detect_group"></label>
             <div class="setting-control">
-              <label class="toggle-switch">
-                <input type="checkbox" id="autoDetectSong" checked>
-                <span class="toggle-slider"></span>
-              </label>
+              <button type="button" class="btn-secondary" id="btnManageAutoDetect" style="font-size: 11px; padding: 4px 8px;" data-i18n="btn_manage"></button>
             </div>
           </div>
           <div class="setting-row">
@@ -450,6 +467,15 @@
               </label>
             </div>
           </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_btn_url_sync"></label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="remoteBtnUrlSync" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <div class="settings-group">
@@ -525,6 +551,16 @@
       <div class="custom-modal-actions">
         <button id="customConfirmCancel" class="btn-secondary" data-i18n="btn_cancel"></button>
         <button id="customConfirmOk" class="btn-primary" data-i18n="btn_confirm"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="autoDetectManagerModal" class="custom-modal">
+    <div class="custom-modal-content auto-detect-modal-content">
+      <h3 data-i18n="title_auto_detect_manager"></h3>
+      <div id="autoDetectSiteList"></div>
+      <div class="custom-modal-actions">
+        <button id="btnCloseAutoDetectManager" class="btn-primary" data-i18n="btn_confirm"></button>
       </div>
     </div>
   </div>
