@@ -500,6 +500,31 @@
               <input type="text" id="googleSheetUrl" class="text-input" style="width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 11px;">
             </div>
           </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_sheet_auto_sync"></label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="sheetAutoSyncEnabled">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_sheet_auto_sync_interval"></label>
+            <div class="setting-control">
+              <select id="sheetAutoSyncIntervalMin" class="select-input">
+                <option value="60" data-i18n="opt_sync_1h"></option>
+                <option value="360" data-i18n="opt_sync_6h"></option>
+                <option value="1440" selected data-i18n="opt_sync_1d"></option>
+              </select>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_sheet_last_sync"></label>
+            <div class="setting-control">
+              <span id="lastSheetSyncAtLabel" class="hint-text">-</span>
+            </div>
+          </div>
         </div>
 
         <div class="settings-group">
@@ -568,6 +593,7 @@
     </div>
   </div>
   <script src="../lib/sheet-parser.js"></script>
+  <script src="../lib/sheet-sync.js"></script>
   <script src="../lib/i18n.js"></script>
   <script src="popup.js"></script>
 </body>

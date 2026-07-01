@@ -74,6 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsTextAlign: document.getElementById('settingsTextAlign'),
     textShadow: document.getElementById('textShadow'),
     googleSheetUrl: document.getElementById('googleSheetUrl'),
+    sheetAutoSyncEnabled: document.getElementById('sheetAutoSyncEnabled'),
+    sheetAutoSyncIntervalMin: document.getElementById('sheetAutoSyncIntervalMin'),
+    lastSheetSyncAtLabel: document.getElementById('lastSheetSyncAtLabel'),
     btnSelectArea: document.getElementById('btnSelectArea'),
     libraryCount: document.getElementById('libraryCount'),
     btnSaveSettings: document.getElementById('btnSaveSettings'),
@@ -678,93 +681,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // 실제 병합 로직은 lib/sheet-sync.js(SheetSync)로 이식되어 background.js와 공유된다.
   async function mergeLyrics(newLyrics) {
-    const data = await getStorageData('savedLyrics');
-    let list = data.savedLyrics || [];
-    let added = 0;
-    let updated = 0;
-    let autoOnlyAdded = 0;
-    let autoOnlyUpdated = 0;
-
-    let maxIdx = 0;
-    list.forEach(item => {
-      if (item.parsed && item.parsed.index) {
-        const idx = parseInt(item.parsed.index, 10);
-        if (!isNaN(idx) && idx > maxIdx) maxIdx = idx;
-      }
-    });
-
-    newLyrics.forEach(newItem => {
-      if (!newItem.srtText) return;
-
-      // 이전 형식 호환 및 새로운 양식 적용을 위해 파일명 다시 파싱
-      const rawNameToParse = (newItem.parsed && newItem.parsed.original) ? newItem.parsed.original : newItem.name;
-      const parsed = parseFileName(rawNameToParse);
-
-      // 혹시 기존 순번 데이터가 있다면 가져오기 (다시 파싱 시 없어질 수 있으므로)
-      if (!parsed.index && newItem.parsed && newItem.parsed.index) {
-        parsed.index = newItem.parsed.index;
-      }
-
-      // 키워드 데이터 보존
-      if (newItem.parsed && newItem.parsed.keywords) {
-        parsed.keywords = newItem.parsed.keywords;
-      }
-
-      const existingIndex = list.findIndex(l => {
-        if (l.parsed && l.parsed.artistOrig && l.parsed.titleOrig && parsed.artistOrig && parsed.titleOrig) {
-          return l.parsed.artistOrig === parsed.artistOrig && l.parsed.titleOrig === parsed.titleOrig;
-        }
-        return l.name === newItem.name;
-      });
-
-      // Auto Only 가사는 번호를 채번하지 않는다 (수동 목록에서 숨겨지므로 번호 불필요).
-      // 일반→Auto Only 전환 시 기존 번호도 제거.
-      if (newItem.autoOnly) {
-        parsed.index = '';
-      } else if (!parsed.index) {
-        if (existingIndex >= 0 && list[existingIndex].parsed && list[existingIndex].parsed.index) {
-          parsed.index = list[existingIndex].parsed.index;
-        } else {
-          maxIdx++;
-          parsed.index = String(maxIdx).padStart(4, '0');
-        }
-      } else {
-        // 순번이 명시되어 있지만 다른 곡에서 이미 사용 중이라면 충돌 방지를 위해 채번
-        const isConflict = list.some((l, idx) => idx !== existingIndex && l.parsed && l.parsed.index === parsed.index);
-        if (isConflict) {
-          maxIdx++;
-          parsed.index = String(maxIdx).padStart(4, '0');
-        } else {
-          const idx = parseInt(parsed.index, 10);
-          if (!isNaN(idx) && idx > maxIdx) maxIdx = idx;
-        }
-      }
-
-      const standardName = buildStandardName(parsed);
-      const entryToSave = {
-        ...newItem,
-        name: standardName,
-        parsed: parsed,
-        // Auto Only는 시트(가져온 데이터)를 기준으로 반영.
-        autoOnly: !!newItem.autoOnly
-      };
-
-      if (existingIndex >= 0) {
-        list[existingIndex] = { ...list[existingIndex], ...entryToSave, updatedAt: Date.now() };
-        updated++;
-        if (newItem.autoOnly) autoOnlyUpdated++;
-      } else {
-        const entry = { ...entryToSave, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) };
-        list.push(entry);
-        added++;
-        if (newItem.autoOnly) autoOnlyAdded++;
-      }
-    });
-
-    await chrome.storage.local.set({ savedLyrics: list });
+    const result = await SheetSync.mergeLyricsIntoStorage(newLyrics);
     renderLibrary();
-    return { added, updated, autoOnlyAdded, autoOnlyUpdated };
+    return result;
   }
 
   // mergeLyrics 결과를 토스트 문자열로 변환
@@ -795,6 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newLyrics = SheetParser.rowsToLyrics(SheetParser.parseCSV(await response.text()).slice(1));
         if (newLyrics.length > 0) {
           const result = await mergeLyrics(newLyrics);
+          await chrome.storage.local.set({ lastSheetSyncAt: Date.now() });
           showToast(buildMergeToast(result));
         } else {
           showToast(I18n.t('toast_sheet_no_data'));
@@ -1209,10 +1131,11 @@ document.addEventListener('DOMContentLoaded', () => {
     remotePanelAutoClose: true, remotePanelAutoCloseSec: 5,
     showPrevLyrics: false, showNextLyrics: false,
     outlineWidth: 0,
-    contextFontScale: 62, contextOpacity: 50
+    contextFontScale: 62, contextOpacity: 50,
+    sheetAutoSyncEnabled: false, sheetAutoSyncIntervalMin: 1440
   };
 
-  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'autoDetectVideoSites', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync', 'remoteBtnUrlSync', 'remotePanelAutoClose', 'remotePanelAutoCloseSec', 'showPrevLyrics', 'showNextLyrics'];
+  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'autoDetectVideoSites', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync', 'remoteBtnUrlSync', 'remotePanelAutoClose', 'remotePanelAutoCloseSec', 'showPrevLyrics', 'showNextLyrics', 'sheetAutoSyncEnabled', 'sheetAutoSyncIntervalMin'];
   const DESIGN_KEYS = ['origFontSize', 'origColor', 'showOriginal', 'pronFontSize', 'pronColor', 'showPronunciation', 'mainFontSize', 'mainColor', 'bgColor', 'bgOpacity', 'bgBlur', 'textShadow', 'outlineWidth', 'animation', 'textAlign', 'pinColor', 'fontFamily', 'contextFontScale', 'contextOpacity'];
 
   function getSettings() { return new Promise(resolve => { chrome.storage.local.get(['settings'], data => { resolve({ ...defaultSettings, ...(data.settings || {}) }); }); }); }
@@ -1324,6 +1247,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     if (els.googleSheetUrl) els.googleSheetUrl.value = s.googleSheetUrl || '';
+    if (els.sheetAutoSyncEnabled) els.sheetAutoSyncEnabled.checked = s.sheetAutoSyncEnabled === true;
+    if (els.sheetAutoSyncIntervalMin) els.sheetAutoSyncIntervalMin.value = String(s.sheetAutoSyncIntervalMin || 1440);
+    if (els.lastSheetSyncAtLabel) {
+      const { lastSheetSyncAt } = await getStorageData('lastSheetSyncAt');
+      els.lastSheetSyncAtLabel.textContent = lastSheetSyncAt ? new Date(lastSheetSyncAt).toLocaleString() : I18n.t('lbl_never_synced');
+    }
   }
 
   // 자동 감지 지원 사이트 목록 — 새 사이트 추가 시 이 배열에 항목 하나만 추가하면
@@ -1479,13 +1408,18 @@ document.addEventListener('DOMContentLoaded', () => {
       remoteBtnPlayStop: els.remoteBtnPlayStop.checked,
       remoteBtnSync: els.remoteBtnSync.checked,
       remoteBtnUrlSync: els.remoteBtnUrlSync.checked,
-      remoteEnabledSites: enabledSites
+      remoteEnabledSites: enabledSites,
+      sheetAutoSyncEnabled: els.sheetAutoSyncEnabled ? els.sheetAutoSyncEnabled.checked : false,
+      sheetAutoSyncIntervalMin: els.sheetAutoSyncIntervalMin
+        ? (parseInt(els.sheetAutoSyncIntervalMin.value, 10) || 1440)
+        : 1440
     };
 
     const prevUrl = (s.googleSheetUrl || '').trim();
     const newUrl = nonDesignSettings.googleSheetUrl;
 
     await saveSettings({ ...s, ...nonDesignSettings });
+    chrome.runtime.sendMessage({ target: 'background', type: 'SYNC_ALARM_UPDATE' }).catch(() => {});
     await sendToContent({ type: 'UPDATE_STYLE' });
     showToast(I18n.t('toast_settings_saved'));
 
