@@ -3333,6 +3333,11 @@
         // 보고 있는 곡과 위치를 그대로 유지한 채 수동으로 미세조정할 수 있게 함.
         if (state._urlSyncPaused) return;
 
+        // 현재 재생 중인 곡이 URL 동기화 후보 중 하나라면, 영상 위치가 등록된 구간 밖(첫 가사
+        // 이전/마지막 가사 이후)이어도 오프셋 인지 seek/clock을 유지한다 — 그래야 리모컨에서
+        // 가사를 클릭했을 때도 오프셋이 반영된 올바른 영상 시점으로 이동한다.
+        const activeCandidate = candidates.find(c => c.item.id === state.currentLibraryItemId);
+
         if (matched && matched.item.id !== activeItemId) {
           activeItemId = matched.item.id;
           const entries = getParsedEntries(matched.item);
@@ -3361,8 +3366,14 @@
           const fixedOffsetMs = matched.offsetMs;
           state.externalClock = { getTimeMs: () => video.currentTime * 1000 - fixedOffsetMs };
           state.externalSeek = (ms) => { video.currentTime = (ms + fixedOffsetMs) / 1000; };
+        } else if (activeCandidate) {
+          // 구간 밖이지만(첫 가사 이전/마지막 가사 이후) 여전히 같은 곡이 로드돼 있음 —
+          // 오프셋 인지 seek/clock을 유지해 리모컨 클릭 시에도 올바른 영상 시점으로 이동시킨다.
+          const fixedOffsetMs = activeCandidate.offsetMs;
+          state.externalClock = { getTimeMs: () => video.currentTime * 1000 - fixedOffsetMs };
+          state.externalSeek = (ms) => { video.currentTime = (ms + fixedOffsetMs) / 1000; };
         }
-        // matched가 없으면(등록된 구간 밖) 아무 것도 바꾸지 않는다 — 이미 로드된 곡의
+        // matched도 activeCandidate도 없으면 아무 것도 바꾸지 않는다 — 이미 로드된 곡의
         // findEntryAtTime이 범위 밖이면 자연히 빈 화면이 되므로 별도 처리 불필요.
       }
 
