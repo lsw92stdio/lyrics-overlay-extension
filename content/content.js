@@ -196,7 +196,7 @@
         <button class="remote-btn remote-btn-sync-plus" id="remote-sync-plus" title="${chrome.i18n.getMessage('remote_title_sync_plus')}">+</button>
         <div class="remote-divider remote-divider-url-sync"></div>
         <button class="remote-btn remote-btn-url-sync" id="remote-url-sync" title="${chrome.i18n.getMessage('remote_title_url_sync')}">🔗</button>
-        <button class="remote-btn remote-btn-url-unlink" id="remote-url-unlink" title="${chrome.i18n.getMessage('remote_title_url_sync_unlink')}">🔒</button>
+        <button class="remote-btn remote-btn-url-unlink inactive" id="remote-url-unlink" title="${chrome.i18n.getMessage('remote_title_url_sync_unlink')}">🔒</button>
       </div>
       <button class="remote-btn remote-btn-minimize" id="remote-minimize-btn" title="${chrome.i18n.getMessage('remote_title_minimize')}" style="width: 20px;">›</button>
       <div class="remote-library-panel hidden" id="remote-library-panel">
@@ -645,6 +645,9 @@
     state.syncOffset = 0;
     state.trackName = item.name;
     state.currentLibraryItemId = item.id || null;
+    // 새 곡을 방금 선택한 시점엔 URL 동기화 여부를 아직 모름 — 흐릿한 기본 상태로
+    // 초기화해두면, 동기화 대상 사이트라면 handleTick이 1초 내로 정확히 갱신한다.
+    refreshUrlSyncLockIcon(false);
 
     // 팝업 복원용 트랙 정보 갱신 (사이트별로 저장)
     updateSiteState({ currentTrack: {
@@ -759,6 +762,21 @@
     state.overlay.syncVal.textContent = (s > 0 ? '+' : '') + s.toFixed(1) + 's';
   }
 
+  // 리모컨 🔒/🔓 버튼: 현재 곡이 실제로 URL 동기화 등록돼 있을 때만 "잠금" 아이콘을
+  // 활성 표시한다. 등록된 적 없는 곡에서는 흐릿하게(inactive) 표시해 혼동을 막는다.
+  function refreshUrlSyncLockIcon(isActive) {
+    if (!state.overlay || !state.overlay.remote) return;
+    const btn = state.overlay.remote.querySelector('#remote-url-unlink');
+    if (!btn) return;
+    if (!isActive) {
+      btn.classList.add('inactive');
+      btn.textContent = '🔒';
+    } else {
+      btn.classList.remove('inactive');
+      btn.textContent = state._urlSyncPaused ? '🔓' : '🔒';
+    }
+  }
+
   // 리모컨 🔗 버튼: "지금 화면에 보이는 가사 위치"와 "영상의 현재 재생 위치"를 고정해
   // item.videoSyncs에 등록한다. URL_SYNC_SITES(content.js 하단)를 그대로 재사용.
   function registerUrlSync(btnEl) {
@@ -821,10 +839,8 @@
       chrome.storage.local.set({ savedLyrics });
 
       // 🔓(해제) 버튼을 다시 🔒(잠김)로 — 동기화가 다시 걸렸음을 아이콘으로 표시
-      if (state.overlay && state.overlay.remote) {
-        const unlinkBtn = state.overlay.remote.querySelector('#remote-url-unlink');
-        if (unlinkBtn) unlinkBtn.textContent = '🔒';
-      }
+      state._urlSyncPaused = false;
+      refreshUrlSyncLockIcon(true);
 
       if (btnEl) {
         btnEl.classList.add('synced-flash');
@@ -848,6 +864,7 @@
     state._urlSyncPaused = true;
 
     if (btnEl) {
+      btnEl.classList.remove('inactive');
       btnEl.textContent = '🔓'; // 잠금 해제 상태를 아이콘으로 표시
       btnEl.classList.add('unlinked-flash');
       setTimeout(() => btnEl.classList.remove('unlinked-flash'), 600);
@@ -1131,6 +1148,9 @@
         background: rgba(255, 170, 0, 0.4);
         color: #ffaa00;
         transition: background 0.15s, color 0.15s;
+      }
+      .remote-btn-url-unlink.inactive {
+        opacity: 0.35;
       }
 
       /* 리모컨 노래 목록 패널 */
@@ -2103,10 +2123,7 @@
       state.overlay.linesContainer.classList.remove('context-gap');
       state.overlay.progressFill.style.width = '0%';
       if (state.overlay.btnToggle) state.overlay.btnToggle.textContent = '▶';
-      if (state.overlay.remote) {
-        const unlinkBtn = state.overlay.remote.querySelector('#remote-url-unlink');
-        if (unlinkBtn) unlinkBtn.textContent = '🔒';
-      }
+      refreshUrlSyncLockIcon(false);
 
       // 사이트별 리모컨 ON 상태면 숨기지 않음
       const hostname = window.location.hostname;
@@ -2695,6 +2712,7 @@
         state.syncOffset = 0;
         state.trackName = message.trackName || '';
         state.currentLibraryItemId = message.itemId || null;
+        refreshUrlSyncLockIcon(false);
         createOverlay();
         // overlay가 이미 있을 때는 applySettings만 재실행 (패널 참조 유지)
         if (state.settings) applySettings(state.settings);
@@ -3287,16 +3305,18 @@
         const video = document.querySelector(site.videoSelector);
         if (!video || !isVodVideo(video)) {
           state._urlSyncActiveForVideo = false;
+          refreshUrlSyncLockIcon(false);
           return;
         }
 
         const videoId = site.extractVideoId();
         if (!videoId) {
           state._urlSyncActiveForVideo = false;
+          refreshUrlSyncLockIcon(false);
           return;
         }
 
-        if (!cachedLibrary) { state._urlSyncActiveForVideo = false; return; }
+        if (!cachedLibrary) { state._urlSyncActiveForVideo = false; refreshUrlSyncLockIcon(false); return; }
 
         // 현재 videoId와 매칭되는 모든 (item, offsetMs) 후보 수집 (등록 순서 유지)
         const candidates = [];
@@ -3311,6 +3331,7 @@
 
         if (candidates.length === 0) {
           state._urlSyncActiveForVideo = false;
+          refreshUrlSyncLockIcon(false);
           return;
         }
 
@@ -3375,6 +3396,9 @@
         }
         // matched도 activeCandidate도 없으면 아무 것도 바꾸지 않는다 — 이미 로드된 곡의
         // findEntryAtTime이 범위 밖이면 자연히 빈 화면이 되므로 별도 처리 불필요.
+
+        // 지금 로드된 곡이 실제로 이 영상에 URL 동기화 등록돼 있는지에 따라 🔒 아이콘을 갱신.
+        refreshUrlSyncLockIcon(candidates.some(c => c.item.id === state.currentLibraryItemId));
       }
 
       const intervalId = setInterval(() => {

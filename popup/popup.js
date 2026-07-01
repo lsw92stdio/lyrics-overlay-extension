@@ -1123,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showEndNotice: true,
     showProgressBar: true,
     autoDetectSong: true,
-    autoDetectVideoSites: { youtube: false, youtubemusic: false },
+    autoDetectVideoSites: { youtube: true, youtubemusic: true },
     pinColor: '#FFFFFF',
     remoteEnabledSites: {},
     remoteBtnLibrary: true, remoteBtnTimeline: true, remoteBtnArea: true,
