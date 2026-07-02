@@ -77,6 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
     sheetAutoSyncEnabled: document.getElementById('sheetAutoSyncEnabled'),
     sheetAutoSyncIntervalMin: document.getElementById('sheetAutoSyncIntervalMin'),
     lastSheetSyncAtLabel: document.getElementById('lastSheetSyncAtLabel'),
+    sheetConflictRow: document.getElementById('sheetConflictRow'),
+    sheetConflictCount: document.getElementById('sheetConflictCount'),
+    btnResolveSheetConflicts: document.getElementById('btnResolveSheetConflicts'),
     btnSelectArea: document.getElementById('btnSelectArea'),
     libraryCount: document.getElementById('libraryCount'),
     btnSaveSettings: document.getElementById('btnSaveSettings'),
@@ -704,6 +707,38 @@ document.addEventListener('DOMContentLoaded', () => {
     return `✓ ${addedStr} / ${updatedStr}`;
   }
 
+  // 자막 본문이 로컬과 시트에서 서로 다른 곡들을 곡마다 확인창으로 물어보고,
+  // "예"를 선택하면 시트 내용으로 교체한다. 백그라운드 자동 동기화가 쌓아둔
+  // sheetSyncConflicts 큐에서도 이번에 처리한 항목은 제거한다.
+  async function resolveSrtConflicts(conflicts) {
+    if (!conflicts || conflicts.length === 0) return;
+    for (const c of conflicts) {
+      const useSheet = await showConfirm(I18n.t('confirm_srt_conflict').replace('{name}', c.name));
+      if (useSheet) await SheetSync.applySrtText(c.id, c.sheetSrtText);
+    }
+    const { sheetSyncConflicts } = await getStorageData('sheetSyncConflicts');
+    const remaining = (sheetSyncConflicts || []).filter(x => !conflicts.some(c => c.id === x.id));
+    await chrome.storage.local.set({ sheetSyncConflicts: remaining });
+    renderLibrary();
+    updateSheetConflictHint();
+  }
+
+  // 백그라운드 자동 동기화가 쌓아둔 자막 충돌 건수를 설정 화면에 표시/숨김.
+  async function updateSheetConflictHint() {
+    if (!els.sheetConflictRow) return;
+    const { sheetSyncConflicts } = await getStorageData('sheetSyncConflicts');
+    const n = (sheetSyncConflicts || []).length;
+    els.sheetConflictRow.style.display = n > 0 ? '' : 'none';
+    if (els.sheetConflictCount) els.sheetConflictCount.textContent = `${n}`;
+  }
+
+  if (els.btnResolveSheetConflicts) {
+    els.btnResolveSheetConflicts.addEventListener('click', async () => {
+      const { sheetSyncConflicts } = await getStorageData('sheetSyncConflicts');
+      await resolveSrtConflicts(sheetSyncConflicts || []);
+    });
+  }
+
   // 간단한 CSV 파서 (줄바꿈이 포함된 따옴표 처리)
   async function syncFromSheet(url) {
     const btn = els.btnReloadSheet;
@@ -718,6 +753,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const result = await mergeLyrics(newLyrics);
           await chrome.storage.local.set({ lastSheetSyncAt: Date.now() });
           showToast(buildMergeToast(result));
+          if (result.srtConflicts && result.srtConflicts.length) {
+            await resolveSrtConflicts(result.srtConflicts);
+          }
         } else {
           showToast(I18n.t('toast_sheet_no_data'));
         }
@@ -1253,6 +1291,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const { lastSheetSyncAt } = await getStorageData('lastSheetSyncAt');
       els.lastSheetSyncAtLabel.textContent = lastSheetSyncAt ? new Date(lastSheetSyncAt).toLocaleString() : I18n.t('lbl_never_synced');
     }
+    await updateSheetConflictHint();
   }
 
   // 자동 감지 지원 사이트 목록 — 새 사이트 추가 시 이 배열에 항목 하나만 추가하면

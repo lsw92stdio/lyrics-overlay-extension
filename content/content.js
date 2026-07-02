@@ -3073,6 +3073,7 @@
       // (이 처리가 없으면 "Extension context invalidated" 에러가 매초 발생)
       if (!chrome.runtime || !chrome.runtime.id) { clearInterval(intervalId); return; }
       try { handleTick(); } catch (e) { /* 컨텍스트 일시 오류 등은 무시 */ }
+      refreshUrlSyncLockIcon(!!state.externalClock);
     }, 1000);
     log('SoundCloud 자동 싱크 활성화');
   }
@@ -3224,6 +3225,7 @@
       const intervalId = setInterval(() => {
         if (!chrome.runtime || !chrome.runtime.id) { clearInterval(intervalId); return; }
         try { handleTick(); } catch (e) { /* 컨텍스트 일시 오류 등은 무시 */ }
+        refreshUrlSyncLockIcon(!!state.externalClock);
       }, 1000);
       log('자동 싱크 활성화');
     };
@@ -3305,18 +3307,18 @@
         const video = document.querySelector(site.videoSelector);
         if (!video || !isVodVideo(video)) {
           state._urlSyncActiveForVideo = false;
-          refreshUrlSyncLockIcon(false);
+          refreshUrlSyncLockIcon(!!state.externalClock);
           return;
         }
 
         const videoId = site.extractVideoId();
         if (!videoId) {
           state._urlSyncActiveForVideo = false;
-          refreshUrlSyncLockIcon(false);
+          refreshUrlSyncLockIcon(!!state.externalClock);
           return;
         }
 
-        if (!cachedLibrary) { state._urlSyncActiveForVideo = false; refreshUrlSyncLockIcon(false); return; }
+        if (!cachedLibrary) { state._urlSyncActiveForVideo = false; refreshUrlSyncLockIcon(!!state.externalClock); return; }
 
         // 현재 videoId와 매칭되는 모든 (item, offsetMs) 후보 수집 (등록 순서 유지)
         const candidates = [];
@@ -3331,7 +3333,7 @@
 
         if (candidates.length === 0) {
           state._urlSyncActiveForVideo = false;
-          refreshUrlSyncLockIcon(false);
+          refreshUrlSyncLockIcon(!!state.externalClock);
           return;
         }
 
@@ -3397,8 +3399,8 @@
         // matched도 activeCandidate도 없으면 아무 것도 바꾸지 않는다 — 이미 로드된 곡의
         // findEntryAtTime이 범위 밖이면 자연히 빈 화면이 되므로 별도 처리 불필요.
 
-        // 지금 로드된 곡이 실제로 이 영상에 URL 동기화 등록돼 있는지에 따라 🔒 아이콘을 갱신.
-        refreshUrlSyncLockIcon(candidates.some(c => c.item.id === state.currentLibraryItemId));
+        // 지금 실제로 어떤 메커니즘이든 외부 클럭을 따라가고 있는지에 따라 🔒 아이콘을 갱신.
+        refreshUrlSyncLockIcon(!!state.externalClock);
       }
 
       const intervalId = setInterval(() => {
