@@ -3264,6 +3264,25 @@
       },
       buildCanonicalUrl: (id) => `https://chzzk.naver.com/video/${id}`,
     },
+    {
+      id: 'bilibili',
+      match: (host) => host.includes('bilibili.com') && !host.startsWith('live.'),
+      videoSelector: '.bpx-player-video-wrap video, #bilibili-player video, video',
+      // 비리비리는 같은 BV 번호라도 ?p= 파트 번호로 실제로는 서로 다른 영상(분할편)을
+      // 가리키는 경우가 흔하다 — p가 1이 아니면 BV번호에 파트 번호를 붙여 별개의 videoId로
+      // 취급한다(p 없음/1은 기존과 동일하게 BV번호만 사용, 하위 호환 유지).
+      extractVideoId: () => {
+        const m = window.location.pathname.match(/\/video\/(BV[\w]+)/i);
+        if (!m) return null;
+        const p = new URLSearchParams(window.location.search).get('p');
+        return (p && p !== '1') ? `${m[1]}_p${p}` : m[1];
+      },
+      buildCanonicalUrl: (id) => {
+        const m = id.match(/^(BV\w+?)(?:_p(\d+))?$/i);
+        if (!m) return `https://www.bilibili.com/video/${id}/`;
+        return m[2] ? `https://www.bilibili.com/video/${m[1]}/?p=${m[2]}` : `https://www.bilibili.com/video/${m[1]}/`;
+      },
+    },
   ];
 
   // 등록된 url에서 videoId를 추출(저장은 항상 buildCanonicalUrl 형식이므로 같은 site의
@@ -3276,6 +3295,13 @@
     if (site.id === 'chzzk') {
       const m = storedUrl.match(/\/video\/(\d+)/);
       return m ? m[1] : null;
+    }
+    if (site.id === 'bilibili') {
+      const m = storedUrl.match(/\/video\/(BV[\w]+)/i);
+      if (!m) return null;
+      const pMatch = storedUrl.match(/[?&]p=(\d+)/);
+      const p = pMatch ? pMatch[1] : null;
+      return (p && p !== '1') ? `${m[1]}_p${p}` : m[1];
     }
     return null;
   }
@@ -3356,11 +3382,6 @@
         // 보고 있는 곡과 위치를 그대로 유지한 채 수동으로 미세조정할 수 있게 함.
         if (state._urlSyncPaused) return;
 
-        // 현재 재생 중인 곡이 URL 동기화 후보 중 하나라면, 영상 위치가 등록된 구간 밖(첫 가사
-        // 이전/마지막 가사 이후)이어도 오프셋 인지 seek/clock을 유지한다 — 그래야 리모컨에서
-        // 가사를 클릭했을 때도 오프셋이 반영된 올바른 영상 시점으로 이동한다.
-        const activeCandidate = candidates.find(c => c.item.id === state.currentLibraryItemId);
-
         if (matched && matched.item.id !== activeItemId) {
           activeItemId = matched.item.id;
           const entries = getParsedEntries(matched.item);
@@ -3389,15 +3410,16 @@
           const fixedOffsetMs = matched.offsetMs;
           state.externalClock = { getTimeMs: () => video.currentTime * 1000 - fixedOffsetMs };
           state.externalSeek = (ms) => { video.currentTime = (ms + fixedOffsetMs) / 1000; };
-        } else if (activeCandidate) {
-          // 구간 밖이지만(첫 가사 이전/마지막 가사 이후) 여전히 같은 곡이 로드돼 있음 —
-          // 오프셋 인지 seek/clock을 유지해 리모컨 클릭 시에도 올바른 영상 시점으로 이동시킨다.
-          const fixedOffsetMs = activeCandidate.offsetMs;
-          state.externalClock = { getTimeMs: () => video.currentTime * 1000 - fixedOffsetMs };
-          state.externalSeek = (ms) => { video.currentTime = (ms + fixedOffsetMs) / 1000; };
+        } else if (activeItemId !== null) {
+          // 등록된 구간을 벗어남 — 이전에 URL 동기화로 로드돼 있던 곡을 완전히 해제한다.
+          // activeItemId를 null로 먼저 바꿔 이 분기가 계속 범위 밖에 머무는 동안 매 틱마다
+          // 반복 실행되지 않도록 가드한다.
+          activeItemId = null;
+          stopPlayback(); // externalClock/externalSeek 정리 + 오버레이 숨김 + 🔒 아이콘 해제까지 재사용
+          state.currentLibraryItemId = null;
+          state.lyrics = [];
+          state.trackName = '';
         }
-        // matched도 activeCandidate도 없으면 아무 것도 바꾸지 않는다 — 이미 로드된 곡의
-        // findEntryAtTime이 범위 밖이면 자연히 빈 화면이 되므로 별도 처리 불필요.
 
         // 지금 실제로 어떤 메커니즘이든 외부 클럭을 따라가고 있는지에 따라 🔒 아이콘을 갱신.
         refreshUrlSyncLockIcon(!!state.externalClock);
@@ -3411,7 +3433,7 @@
   }
 
   // ============================================================
-  // 비디오 일시정지/재생 연동 (치지직 VOD + 유튜브)
+  // 비디오 일시정지/재생 연동 (치지직 VOD + 유튜브 + 비리비리)
   //   영상을 멈추면 가사도 멈추고, 다시 재생하면 가사도 이어서 재생.
   //   ※ 위치 동기화가 아니라 play/pause '상태'만 가사에 미러링한다.
   //   ※ VOD에서만 동작(라이브는 duration이 무한 → 제외). 가사 재생 중일 때만 반응.
@@ -3420,13 +3442,16 @@
     const host = window.location.hostname;
     const isChzzk = host.includes('chzzk.naver.com');
     const isYouTube = host.includes('youtube.com');
-    if (!isChzzk && !isYouTube) return;
+    const isBilibili = host.includes('bilibili.com') && !host.startsWith('live.');
+    if (!isChzzk && !isYouTube && !isBilibili) return;
 
     let boundVideo = null;
 
-    // 치지직 플레이어 클래스 우선, 없으면 일반 video
+    // 사이트별 플레이어 클래스 우선, 없으면 일반 video
     const findVideo = () =>
       document.querySelector('video.webplayer-internal-video')
+      ?? document.querySelector('.bpx-player-video-wrap video')
+      ?? document.querySelector('#bilibili-player video')
       ?? document.querySelector('video');
 
     // 영상 → 가사 단방향 미러링. 가드로 중복/오작동 방지.
