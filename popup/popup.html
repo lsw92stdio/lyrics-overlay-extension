@@ -95,7 +95,11 @@
       <div class="lyrics-timeline" id="lyricsTimeline" style="display:none;">
         <div class="timeline-header">
           <span data-i18n="player_timeline"></span>
-          <span class="timeline-count" id="timelineCount"></span>
+          <div class="timeline-header-right">
+            <span class="timeline-count" id="timelineCount"></span>
+            <button class="timeline-icon-btn active" id="btnTimelineAutoScroll" data-i18n-title="remote_title_timeline_autoscroll"></button>
+            <button class="timeline-icon-btn" id="btnTimelineJump" data-i18n-title="remote_title_timeline_jump"></button>
+          </div>
         </div>
         <div class="timeline-list" id="timelineList"></div>
       </div>
@@ -423,7 +427,7 @@
         <div class="settings-group">
           <h3 data-i18n="sec_remote_btns"></h3>
           <div class="setting-row">
-            <label data-i18n="lbl_btn_library"></label>
+            <label><span class="setting-icon-preview" data-icon="library"></span><span data-i18n="lbl_btn_library"></span></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnLibrary" checked>
@@ -432,7 +436,7 @@
             </div>
           </div>
           <div class="setting-row">
-            <label data-i18n="lbl_btn_timeline"></label>
+            <label><span class="setting-icon-preview" data-icon="timeline"></span><span data-i18n="lbl_btn_timeline"></span></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnTimeline" checked>
@@ -441,7 +445,7 @@
             </div>
           </div>
           <div class="setting-row">
-            <label data-i18n="lbl_btn_area"></label>
+            <label><span class="setting-icon-preview" data-icon="area"></span><span data-i18n="lbl_btn_area"></span></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnArea" checked>
@@ -450,7 +454,16 @@
             </div>
           </div>
           <div class="setting-row">
-            <label data-i18n="lbl_btn_play_stop"></label>
+            <label><span class="setting-icon-preview" data-icon="clickThrough"></span><span data-i18n="lbl_btn_click_through"></span></label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="remoteBtnClickThrough" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label><span class="setting-icon-preview" data-icon="play"></span><span class="setting-icon-preview" data-icon="stop"></span><span data-i18n="lbl_btn_play_stop"></span></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnPlayStop" checked>
@@ -459,7 +472,7 @@
             </div>
           </div>
           <div class="setting-row">
-            <label data-i18n="lbl_btn_sync"></label>
+            <label><span class="setting-icon-preview" data-icon="syncMinus"></span><span class="setting-icon-preview" data-icon="syncPlus"></span><span data-i18n="lbl_btn_sync"></span></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnSync" checked>
@@ -468,12 +481,42 @@
             </div>
           </div>
           <div class="setting-row">
-            <label data-i18n="lbl_btn_url_sync"></label>
+            <label><span class="setting-icon-preview" data-icon="urlSync"></span><span data-i18n="lbl_btn_url_sync"></span></label>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input type="checkbox" id="remoteBtnUrlSync" checked>
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_remote_use_emoji"></label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="remoteUseEmoji">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <h3 data-i18n="sec_click_through"></h3>
+          <p class="setting-hint" data-i18n="hint_click_through"></p>
+          <div class="setting-row">
+            <label data-i18n="lbl_click_through_enabled"></label>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input type="checkbox" id="clickThroughEnabled">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="lbl_click_through_opacity"></label>
+            <div class="setting-control">
+              <input type="range" id="clickThroughOpacity" min="0" max="100" value="60" class="range-input">
+              <span class="range-value" id="clickThroughOpacityValue">60%</span>
             </div>
           </div>
         </div>
@@ -602,6 +645,7 @@
   <script src="../lib/sheet-parser.js"></script>
   <script src="../lib/sheet-sync.js"></script>
   <script src="../lib/i18n.js"></script>
+  <script src="../lib/remote-icons.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

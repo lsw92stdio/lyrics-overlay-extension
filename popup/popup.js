@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     lyricsTimeline: document.getElementById('lyricsTimeline'),
     timelineList: document.getElementById('timelineList'),
     timelineCount: document.getElementById('timelineCount'),
+    btnTimelineAutoScroll: document.getElementById('btnTimelineAutoScroll'),
+    btnTimelineJump: document.getElementById('btnTimelineJump'),
     libraryList: document.getElementById('libraryList'),
     tabLibrary: document.getElementById('tab-library'),
     libraryDropOverlay: document.getElementById('libraryDropOverlay'),
@@ -68,6 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
     contextFontScaleValue: document.getElementById('contextFontScaleValue'),
     contextOpacity: document.getElementById('contextOpacity'),
     contextOpacityValue: document.getElementById('contextOpacityValue'),
+    clickThroughEnabled: document.getElementById('clickThroughEnabled'),
+    clickThroughOpacity: document.getElementById('clickThroughOpacity'),
+    clickThroughOpacityValue: document.getElementById('clickThroughOpacityValue'),
     libraryDisplayLang: document.getElementById('libraryDisplayLang'),
     settingsAnimation: document.getElementById('settingsAnimation'),
     animationHint: document.getElementById('animationHint'),
@@ -109,7 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
     remoteBtnPlayStop: document.getElementById('remoteBtnPlayStop'),
     remoteBtnSync: document.getElementById('remoteBtnSync'),
     remoteBtnUrlSync: document.getElementById('remoteBtnUrlSync'),
-    
+    remoteBtnClickThrough: document.getElementById('remoteBtnClickThrough'),
+    remoteUseEmoji: document.getElementById('remoteUseEmoji'),
+
     // 디자인 커스텀
     designTargetSelect: document.getElementById('designTargetSelect'),
     optCurrentSite: document.getElementById('optCurrentSite'),
@@ -124,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let statusInterval = null;
   let activeTimelineIndex = -1;
   let popupCurrentHostname = '';
+  let playerTimelineAutoScroll = true; // 플레이어 탭 타임라인이 현재 재생 위치를 따라 자동 스크롤할지 여부
 
   // ============================================================
   // 탭 전환
@@ -387,6 +395,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 플레이어 탭 타임라인의 자동스크롤 토글/현재위치 이동 버튼 아이콘을 현재 설정(이모지/SVG)에
+  // 맞게 그린다. 리모컨 쪽과 같은 lib/remote-icons.js를 참조하므로 항상 서로 일치한다.
+  async function refreshPlayerTimelineIcons() {
+    if (typeof RemoteIcons === 'undefined' || !els.btnTimelineAutoScroll || !els.btnTimelineJump) return;
+    const s = await getSettings();
+    const useEmoji = s.remoteUseEmoji === true;
+    els.btnTimelineAutoScroll.innerHTML = RemoteIcons.html('timelineAutoScroll', useEmoji);
+    els.btnTimelineJump.innerHTML = RemoteIcons.html('timelineJump', useEmoji);
+  }
+
+  if (els.btnTimelineAutoScroll) {
+    els.btnTimelineAutoScroll.addEventListener('click', () => {
+      playerTimelineAutoScroll = !playerTimelineAutoScroll;
+      els.btnTimelineAutoScroll.classList.toggle('active', playerTimelineAutoScroll);
+    });
+  }
+  if (els.btnTimelineJump) {
+    // 자동 스크롤 on/off와 무관하게, 누른 순간 딱 1번 현재 재생 위치로 스크롤 이동
+    els.btnTimelineJump.addEventListener('click', () => {
+      if (activeTimelineIndex < 0) return;
+      const curr = els.timelineList.children[activeTimelineIndex];
+      if (curr) curr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }
+
   async function seekToTime(timeMs) {
     const status = await sendToContent({ type: 'GET_STATUS' });
     if (!status) return;
@@ -423,8 +456,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const curr = els.timelineList.children[newIndex];
         if (curr) {
           curr.classList.add('active');
-          // 보이는 영역으로 스크롤
-          curr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          // 보이는 영역으로 스크롤 (자동 스크롤이 꺼져있으면 하이라이트만 갱신)
+          if (playerTimelineAutoScroll) curr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
       }
       activeTimelineIndex = newIndex;
@@ -1165,15 +1198,17 @@ document.addEventListener('DOMContentLoaded', () => {
     pinColor: '#FFFFFF',
     remoteEnabledSites: {},
     remoteBtnLibrary: true, remoteBtnTimeline: true, remoteBtnArea: true,
-    remoteBtnPlayStop: true, remoteBtnSync: true, remoteBtnUrlSync: true,
+    remoteBtnPlayStop: true, remoteBtnSync: true, remoteBtnUrlSync: true, remoteBtnClickThrough: true,
     remotePanelAutoClose: true, remotePanelAutoCloseSec: 5,
     showPrevLyrics: false, showNextLyrics: false,
     outlineWidth: 0,
     contextFontScale: 62, contextOpacity: 50,
-    sheetAutoSyncEnabled: false, sheetAutoSyncIntervalMin: 1440
+    sheetAutoSyncEnabled: false, sheetAutoSyncIntervalMin: 1440,
+    remoteUseEmoji: false,
+    clickThroughEnabled: false, clickThroughOpacity: 60
   };
 
-  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'autoDetectVideoSites', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync', 'remoteBtnUrlSync', 'remotePanelAutoClose', 'remotePanelAutoCloseSec', 'showPrevLyrics', 'showNextLyrics', 'sheetAutoSyncEnabled', 'sheetAutoSyncIntervalMin'];
+  const GENERAL_KEYS = ['libraryDisplayLang', 'googleSheetUrl', 'showEndNotice', 'showProgressBar', 'autoDetectSong', 'autoDetectVideoSites', 'remoteEnabledSites', 'remoteBtnLibrary', 'remoteBtnTimeline', 'remoteBtnArea', 'remoteBtnPlayStop', 'remoteBtnSync', 'remoteBtnUrlSync', 'remoteBtnClickThrough', 'remotePanelAutoClose', 'remotePanelAutoCloseSec', 'showPrevLyrics', 'showNextLyrics', 'sheetAutoSyncEnabled', 'sheetAutoSyncIntervalMin', 'remoteUseEmoji', 'clickThroughEnabled', 'clickThroughOpacity'];
   const DESIGN_KEYS = ['origFontSize', 'origColor', 'showOriginal', 'pronFontSize', 'pronColor', 'showPronunciation', 'mainFontSize', 'mainColor', 'bgColor', 'bgOpacity', 'bgBlur', 'textShadow', 'outlineWidth', 'animation', 'textAlign', 'pinColor', 'fontFamily', 'contextFontScale', 'contextOpacity'];
 
   function getSettings() { return new Promise(resolve => { chrome.storage.local.get(['settings'], data => { resolve({ ...defaultSettings, ...(data.settings || {}) }); }); }); }
@@ -1187,6 +1222,16 @@ document.addEventListener('DOMContentLoaded', () => {
       (els.showNextLyrics && els.showNextLyrics.checked);
     els.settingsAnimation.disabled = contextMode;
     if (els.animationHint) els.animationHint.classList.toggle('visible', contextMode);
+  }
+
+  // "표시할 버튼" 목록 라벨 옆의 아이콘 미리보기를, 지금 "이모지로 보기" 체크 상태에 맞춰
+  // 다시 그린다. 리모컨과 동일한 lib/remote-icons.js를 참조하므로 항상 실제 표시와 일치한다.
+  function refreshSettingIconPreviews() {
+    if (typeof RemoteIcons === 'undefined') return;
+    const useEmoji = !!(els.remoteUseEmoji && els.remoteUseEmoji.checked);
+    document.querySelectorAll('.setting-icon-preview').forEach(el => {
+      el.innerHTML = RemoteIcons.html(el.dataset.icon, useEmoji);
+    });
   }
 
   async function loadSettingsUI(keepToggleState = false, isInitialLoad = false) {
@@ -1271,6 +1316,15 @@ document.addEventListener('DOMContentLoaded', () => {
     els.remoteBtnPlayStop.checked = s.remoteBtnPlayStop !== false;
     els.remoteBtnSync.checked = s.remoteBtnSync !== false;
     els.remoteBtnUrlSync.checked = s.remoteBtnUrlSync !== false;
+    if (els.remoteBtnClickThrough) els.remoteBtnClickThrough.checked = s.remoteBtnClickThrough !== false;
+    if (els.remoteUseEmoji) els.remoteUseEmoji.checked = s.remoteUseEmoji === true;
+    refreshSettingIconPreviews();
+    refreshPlayerTimelineIcons();
+    if (els.clickThroughEnabled) els.clickThroughEnabled.checked = s.clickThroughEnabled === true;
+    if (els.clickThroughOpacity) {
+      els.clickThroughOpacity.value = s.clickThroughOpacity ?? 60;
+      if (els.clickThroughOpacityValue) els.clickThroughOpacityValue.textContent = (s.clickThroughOpacity ?? 60) + '%';
+    }
 
     const sites = s.remoteEnabledSites || {};
     const isEnabled = popupCurrentHostname ? sites[popupCurrentHostname] === true : false;
@@ -1353,6 +1407,12 @@ document.addEventListener('DOMContentLoaded', () => {
     els.bgBlur.addEventListener('input', () => { els.bgBlurValue.textContent = els.bgBlur.value + 'px'; });
     els.contextFontScale.addEventListener('input', () => { els.contextFontScaleValue.textContent = els.contextFontScale.value + '%'; });
     els.contextOpacity.addEventListener('input', () => { els.contextOpacityValue.textContent = els.contextOpacity.value + '%'; });
+    if (els.clickThroughOpacity) {
+      els.clickThroughOpacity.addEventListener('input', () => { els.clickThroughOpacityValue.textContent = els.clickThroughOpacity.value + '%'; });
+    }
+    if (els.remoteUseEmoji) {
+      els.remoteUseEmoji.addEventListener('change', refreshSettingIconPreviews);
+    }
     if (els.outlineWidth) els.outlineWidth.addEventListener('input', () => { els.outlineWidthValue.textContent = els.outlineWidth.value + 'px'; });
     els.libraryDisplayLang.addEventListener('change', () => {
       renderLibrary();
@@ -1447,6 +1507,10 @@ document.addEventListener('DOMContentLoaded', () => {
       remoteBtnPlayStop: els.remoteBtnPlayStop.checked,
       remoteBtnSync: els.remoteBtnSync.checked,
       remoteBtnUrlSync: els.remoteBtnUrlSync.checked,
+      remoteBtnClickThrough: els.remoteBtnClickThrough ? els.remoteBtnClickThrough.checked : true,
+      remoteUseEmoji: els.remoteUseEmoji ? els.remoteUseEmoji.checked : false,
+      clickThroughEnabled: els.clickThroughEnabled ? els.clickThroughEnabled.checked : false,
+      clickThroughOpacity: els.clickThroughOpacity ? parseInt(els.clickThroughOpacity.value, 10) : 60,
       remoteEnabledSites: enabledSites,
       sheetAutoSyncEnabled: els.sheetAutoSyncEnabled ? els.sheetAutoSyncEnabled.checked : false,
       sheetAutoSyncIntervalMin: els.sheetAutoSyncIntervalMin

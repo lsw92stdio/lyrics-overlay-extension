@@ -439,7 +439,7 @@
         <li><span class="setting-key">🎯 영역 선택</span> 오버레이가 표시될 영역을 마우스로 지정</li>
         <li><span class="setting-key">▶ / ■</span> 재생·일시정지 / 정지</li>
         <li><span class="setting-key">− / 0.0s / +</span> 싱크 ±0.1초 조절. 가운데 값을 클릭하면 0으로 초기화</li>
-        <li><span class="setting-key">🔗 영상 동기화 등록</span> 지금 화면에 보이는 가사 위치와 영상의 현재 재생 위치를 고정 등록 (유튜브/치지직 VOD 전용). 등록해두면 같은 영상을 다시 방문해도 자동으로 정확한 시점에 가사가 복원되고, 한 영상에 여러 곡을 시간대별로 등록할 수 있습니다</li>
+        <li><span class="setting-key">🔗 영상 동기화 등록</span> 지금 화면에 보이는 가사 위치와 영상의 현재 재생 위치를 고정 등록 (유튜브/치지직 VOD/비리비리 전용). 등록해두면 같은 영상을 다시 방문해도 자동으로 정확한 시점에 가사가 복원되고, 한 영상에 여러 곡을 시간대별로 등록할 수 있습니다. 등록된 구간(첫 가사~마지막 가사)을 벗어나면 자동으로 해제됩니다</li>
         <li><span class="setting-key">🔒 / 🔓 동기화 임시 해제</span> 자동 동기화가 어긋났을 때 잠시 연동을 끊고(🔓) −/+ 버튼이나 타임라인으로 미세조정한 뒤, 🔗 버튼을 다시 눌러 재등록(🔒로 복귀)할 수 있습니다</li>
         <li><span class="setting-key">› 최소화</span> 리모컨을 핸들만 남기고 최소화 / 다시 클릭으로 복원</li>
       </ul>
@@ -511,8 +511,9 @@
         <li><strong>설정(⚙) 탭</strong>의 <strong>구글 시트 연동</strong> URL 입력창에 붙여넣기 후 저장</li>
         <li><strong>라이브러리(📁) 탭</strong>에서 <strong>시트 연동</strong> 버튼 클릭</li>
       </ol>
-      <div class="tip"><strong>💡 병합 방식:</strong> 가져오기는 전체 덮어쓰기가 아닌 <strong>병합</strong>입니다. 동일 곡(아티스트+제목 기준)은 업데이트되고, 새 곡은 추가됩니다. 기존 데이터는 유지됩니다.</div>
-      <div class="tip"><strong>💡 자동 연동:</strong> 라이브러리가 비어있고 시트 URL이 저장돼 있으면, 팝업을 열거나 리모컨의 라이브러리 패널을 처음 열 때 자동으로 시트 데이터를 가져옵니다.</div>
+      <div class="tip"><strong>💡 병합 방식:</strong> 가져오기는 전체 덮어쓰기가 아닌 <strong>병합</strong>입니다. 동일 곡(아티스트+제목 기준)은 업데이트되고, 새 곡은 추가됩니다. Auto Only는 이미 있는 곡이면 로컬 값을 유지(신규 곡만 시트 값 적용)하고, 키워드·영상 동기화 정보는 로컬+시트 값을 합쳐서 보존합니다. 자막 본문이 로컬과 다르면 시트로 바로 덮어쓰지 않고 확인 후 반영합니다.</div>
+      <div class="tip"><strong>💡 팝업 열 때 자동 연동:</strong> 라이브러리가 비어있고 시트 URL이 저장돼 있으면, 팝업을 열거나 리모컨의 라이브러리 패널을 처음 열 때 자동으로 시트 데이터를 가져옵니다.</div>
+      <div class="tip"><strong>💡 백그라운드 자동 동기화:</strong> <strong>설정(⚙) 탭</strong>의 <strong>구글 시트 연동</strong>에서 "자동 동기화"를 켜면, 팝업을 열지 않아도 1시간/6시간/1일 중 선택한 주기로 백그라운드에서 자동으로 시트와 동기화됩니다 (기본값: 꺼짐). 브라우저가 꺼져 있던 동안 주기가 지났다면 다음 실행 시 즉시 한 번 동기화합니다. 자동 동기화 중 자막 충돌이 발견되면 곧바로 묻지 않고 모아뒀다가, 팝업을 다시 열었을 때 "자막 충돌 N건" 알림으로 확인/선택할 수 있습니다.</div>
     </div>
   </div>
 
@@ -691,7 +692,7 @@ Second line</span></pre>
         <li><span class="setting-key">🎯 Area Select</span> Draw a region on the page to pin lyrics inside it</li>
         <li><span class="setting-key">▶ / ■</span> Play/Pause and Stop</li>
         <li><span class="setting-key">− / 0.0s / +</span> Adjust sync by ±0.1s. Click the center value to reset to 0</li>
-        <li><span class="setting-key">🔗 Register Video-Lyrics Sync</span> Anchors the currently displayed lyric position to the video's current playback time (YouTube/Chzzk VOD only). Once registered, revisiting the same video automatically restores lyrics at the exact right moment, and you can register multiple songs at different time ranges within a single video</li>
+        <li><span class="setting-key">🔗 Register Video-Lyrics Sync</span> Anchors the currently displayed lyric position to the video's current playback time (YouTube/Chzzk VOD/Bilibili only). Once registered, revisiting the same video automatically restores lyrics at the exact right moment, and you can register multiple songs at different time ranges within a single video. Seeking outside the registered range (before the first line or after the last) releases the sync automatically</li>
         <li><span class="setting-key">🔒 / 🔓 Temporarily Unlink Sync</span> If auto-sync drifts, unlink it (🔓), fine-tune with the −/+ buttons or the timeline, then click 🔗 again to re-register (back to 🔒)</li>
         <li><span class="setting-key">› Minimize</span> Collapse the remote to just the drag handle. Click again to restore</li>
       </ul>
@@ -764,8 +765,9 @@ Second line</span></pre>
         <li>Go to <strong>Settings (⚙) tab</strong> → paste the URL into the <strong>Google Sheet Sync</strong> field and save</li>
         <li>Go to the <strong>Library (📁) tab</strong> and click the <strong>Sheet Sync</strong> button</li>
       </ol>
-      <div class="tip"><strong>💡 Merge behavior:</strong> Importing merges with your existing library — tracks with the same artist+title are updated, new tracks are added. Nothing is deleted.</div>
-      <div class="tip"><strong>💡 Auto-sync:</strong> If the library is empty and a sheet URL is saved, the app will automatically fetch the sheet when the popup is opened or the remote library panel is first opened.</div>
+      <div class="tip"><strong>💡 Merge behavior:</strong> Importing merges with your existing library — tracks with the same artist+title are updated, new tracks are added. Nothing is deleted. Auto Only keeps the local value for existing tracks (the sheet value only applies to newly added tracks), and keywords / video sync data are merged (local + sheet) rather than overwritten. If the lyric text itself differs from the sheet, you'll be asked before it's replaced.</div>
+      <div class="tip"><strong>💡 Auto-sync on popup open:</strong> If the library is empty and a sheet URL is saved, the app will automatically fetch the sheet when the popup is opened or the remote library panel is first opened.</div>
+      <div class="tip"><strong>💡 Background auto-sync:</strong> In <strong>Settings (⚙) tab</strong> → <strong>Google Sheet Sync</strong>, turn on "Auto Sync" to sync automatically in the background every hour / 6 hours / day — even with the popup closed (off by default). If the browser was closed past the interval, it syncs once immediately on the next launch. Lyric text conflicts found during background sync aren't prompted right away — they're queued and shown as a "Lyrics Conflicts: N" notice the next time you open the popup, where you can review and choose per track.</div>
     </div>
   </div>
 
@@ -944,7 +946,7 @@ Second line</span></pre>
         <li><span class="setting-key">🎯 エリア選択</span> オーバーレイを表示する領域をマウスで指定</li>
         <li><span class="setting-key">▶ / ■</span> 再生・一時停止 / 停止</li>
         <li><span class="setting-key">− / 0.0s / +</span> 同期を±0.1秒調整。中央の値をクリックすると0にリセット</li>
-        <li><span class="setting-key">🔗 動画-歌詞シンク同期登録</span> 現在表示中の歌詞位置と動画の再生位置を固定登録（YouTube/CHZZK VODのみ対応）。登録しておくと同じ動画を再度開いても自動的に正確なタイミングで歌詞が復元され、1つの動画に複数の曲を時間帯別に登録できます</li>
+        <li><span class="setting-key">🔗 動画-歌詞シンク同期登録</span> 現在表示中の歌詞位置と動画の再生位置を固定登録（YouTube/CHZZK VOD/bilibiliのみ対応）。登録しておくと同じ動画を再度開いても自動的に正確なタイミングで歌詞が復元され、1つの動画に複数の曲を時間帯別に登録できます。登録した区間（最初の歌詞〜最後の歌詞）を外れると自動的に解除されます</li>
         <li><span class="setting-key">🔒 / 🔓 シンクを一時解除</span> 自動同期がずれた場合、一時的に連動を解除（🔓）してから−/+ボタンやタイムラインで微調整し、🔗ボタンを再度押して再登録（🔒に戻る）できます</li>
         <li><span class="setting-key">› 最小化</span> リモコンをドラッグハンドルのみに縮小。再クリックで復元</li>
       </ul>
@@ -1016,8 +1018,9 @@ Second line</span></pre>
         <li><strong>設定(⚙)タブ</strong> の <strong>Googleシート同期</strong> URL欄に貼り付けて保存</li>
         <li><strong>ライブラリ(📁)タブ</strong> で <strong>シート同期</strong> ボタンをクリック</li>
       </ol>
-      <div class="tip"><strong>💡 マージ方式:</strong> インポートは完全上書きではなく <strong>マージ</strong> です。同じ曲（アーティスト+タイトル）は更新され、新しい曲は追加されます。既存データは保持されます。</div>
-      <div class="tip"><strong>💡 自動同期:</strong> ライブラリが空でシートURLが保存されている場合、ポップアップを開いたときやリモコンのライブラリパネルを初めて開いたときに自動的にシートデータを取得します。</div>
+      <div class="tip"><strong>💡 マージ方式:</strong> インポートは完全上書きではなく <strong>マージ</strong> です。同じ曲（アーティスト+タイトル）は更新され、新しい曲は追加されます。既存データは保持されます。Auto Onlyは既存曲ならローカル値を維持（シート値は新規追加曲のみに適用）し、キーワード・動画シンク情報はローカル+シートの値をマージして保持します。歌詞本文がローカルと異なる場合は、すぐに上書きせず確認の上で反映します。</div>
+      <div class="tip"><strong>💡 ポップアップを開いた時の自動同期:</strong> ライブラリが空でシートURLが保存されている場合、ポップアップを開いたときやリモコンのライブラリパネルを初めて開いたときに自動的にシートデータを取得します。</div>
+      <div class="tip"><strong>💡 バックグラウンド自動同期:</strong> <strong>設定(⚙)タブ</strong> の <strong>Googleシート同期</strong> で「自動同期」をオンにすると、ポップアップを開かなくても1時間／6時間／1日ごとにバックグラウンドで自動同期されます（デフォルトはOFF）。ブラウザが閉じていた間に周期を過ぎていた場合は、次回起動時に即座に1回同期します。バックグラウンド同期中に歌詞本文の競合が見つかった場合はその場で確認せず、次にポップアップを開いたときに「歌詞の競合: N件」として表示され、曲ごとに確認・選択できます。</div>
     </div>
   </div>
 

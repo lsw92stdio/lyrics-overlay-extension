@@ -48,7 +48,8 @@
     siteState: {}, // 사이트별 상태 저장
     currentLibraryItemId: null, // 현재 로드된 라이브러리 항목의 id (URL 동기화 등록에 필요)
     _urlSyncActiveForVideo: false, // 현재 영상에 URL 기반 동기화 등록이 있으면 true (자동감지가 양보)
-    _urlSyncPaused: false // 🔓로 일시 해제한 상태면 true — 팔로워가 클럭/곡 전환을 건너뜀
+    _urlSyncPaused: false, // 🔓로 일시 해제한 상태면 true — 팔로워가 클럭/곡 전환을 건너뜀
+    _timelineAutoScroll: true // 리모컨 타임라인 패널이 현재 재생 위치를 따라 자동 스크롤할지 여부
   };
 
   // SoundCloud 등 미디어 사이트의 "현재 재생 위치(ms)" 제공자.
@@ -87,6 +88,48 @@
       // Update local state immediately for sync
       state.siteState = states[currentHostname];
     });
+  }
+
+  // ============================================================
+  // 리모컨 아이콘 — 실제 아이콘 표는 lib/remote-icons.js(RemoteIcons)에 있음(설정 화면의
+  // 미리보기와 공유하기 위해 분리). 여기서는 현재 설정에 맞게 꺼내 쓰는 역할만 한다.
+  // ============================================================
+  function useEmojiIcons() {
+    return !!(state.settings && state.settings.remoteUseEmoji);
+  }
+
+  function iconHTML(key) {
+    return RemoteIcons.html(key, useEmojiIcons());
+  }
+
+  // 현재 열려있는 리모컨의 아이콘 전부를 설정(이모지/SVG)에 맞게 다시 그린다.
+  // 정적 아이콘은 이 함수가, 재생/일시정지·잠금/해제처럼 상태에 따라 바뀌는 아이콘은
+  // 각자의 토글 지점(play/pause, refreshUrlSyncLockIcon)이 iconHTML()을 호출해 갱신한다.
+  function refreshRemoteIcons() {
+    if (!state.overlay || !state.overlay.remote) return;
+    const r = state.overlay.remote;
+    const setIcon = (selector, key) => {
+      const el = r.querySelector(selector);
+      if (el) el.innerHTML = iconHTML(key);
+    };
+    setIcon('#remote-library-btn', 'library');
+    setIcon('#remote-timeline-btn', 'timeline');
+    setIcon('#remote-area-btn', 'area');
+    setIcon('#remote-clickthrough-btn', 'clickThrough');
+    setIcon('#remote-stop', 'stop');
+    setIcon('#remote-sync-minus', 'syncMinus');
+    setIcon('#remote-sync-plus', 'syncPlus');
+    setIcon('#remote-url-sync', 'urlSync');
+    setIcon('#remote-minimize-btn', 'minimize');
+    setIcon('#remote-library-close', 'close');
+    setIcon('#remote-timeline-close', 'close');
+    setIcon('#remote-timeline-jump', 'timelineJump');
+    const autoScrollBtn = r.querySelector('#remote-timeline-autoscroll');
+    if (autoScrollBtn) autoScrollBtn.innerHTML = iconHTML('timelineAutoScroll');
+    const playBtn = r.querySelector('#remote-toggle-play');
+    if (playBtn) playBtn.innerHTML = iconHTML((state.isPlaying && !state.isPaused) ? 'pause' : 'play');
+    // 잠금 버튼은 활성/일시해제 상태까지 함께 판단해야 하므로 기존 로직을 그대로 재사용
+    refreshUrlSyncLockIcon(!!state.externalClock);
   }
 
   // ============================================================
@@ -185,29 +228,37 @@
     remote.innerHTML = `
       <div class="remote-drag-handle" title="${chrome.i18n.getMessage('remote_drag_title')}"><svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/></svg></div>
       <div class="remote-controls">
-        <button class="remote-btn remote-btn-library" id="remote-library-btn" title="${chrome.i18n.getMessage('remote_title_song_list')}">🎵</button>
-        <button class="remote-btn remote-btn-timeline" id="remote-timeline-btn" title="${chrome.i18n.getMessage('remote_title_timeline')}">📜</button>
-        <button class="remote-btn remote-btn-area" id="remote-area-btn" title="${chrome.i18n.getMessage('remote_title_area')}">🎯</button>
-        <button class="remote-btn remote-btn-play" id="remote-toggle-play" title="${chrome.i18n.getMessage('remote_title_play_pause')}">▶</button>
-        <button class="remote-btn remote-btn-stop" id="remote-stop" title="${chrome.i18n.getMessage('remote_title_stop')}">■</button>
+        <button class="remote-btn remote-btn-library" id="remote-library-btn" title="${chrome.i18n.getMessage('remote_title_song_list')}">${iconHTML('library')}</button>
+        <button class="remote-btn remote-btn-timeline" id="remote-timeline-btn" title="${chrome.i18n.getMessage('remote_title_timeline')}">${iconHTML('timeline')}</button>
+        <button class="remote-btn remote-btn-area" id="remote-area-btn" title="${chrome.i18n.getMessage('remote_title_area')}">${iconHTML('area')}</button>
+        <button class="remote-btn remote-btn-clickthrough" id="remote-clickthrough-btn" title="${chrome.i18n.getMessage('remote_title_clickthrough')}">${iconHTML('clickThrough')}</button>
+        <button class="remote-btn remote-btn-play" id="remote-toggle-play" title="${chrome.i18n.getMessage('remote_title_play_pause')}">${iconHTML('play')}</button>
+        <button class="remote-btn remote-btn-stop" id="remote-stop" title="${chrome.i18n.getMessage('remote_title_stop')}">${iconHTML('stop')}</button>
         <div class="remote-divider"></div>
-        <button class="remote-btn remote-btn-sync-minus" id="remote-sync-minus" title="${chrome.i18n.getMessage('remote_title_sync_minus')}">−</button>
+        <button class="remote-btn remote-btn-sync-minus" id="remote-sync-minus" title="${chrome.i18n.getMessage('remote_title_sync_minus')}">${iconHTML('syncMinus')}</button>
         <div class="remote-sync-val" id="remote-sync-val" title="${chrome.i18n.getMessage('remote_title_sync_reset')}">0.0s</div>
-        <button class="remote-btn remote-btn-sync-plus" id="remote-sync-plus" title="${chrome.i18n.getMessage('remote_title_sync_plus')}">+</button>
+        <button class="remote-btn remote-btn-sync-plus" id="remote-sync-plus" title="${chrome.i18n.getMessage('remote_title_sync_plus')}">${iconHTML('syncPlus')}</button>
         <div class="remote-divider remote-divider-url-sync"></div>
-        <button class="remote-btn remote-btn-url-sync" id="remote-url-sync" title="${chrome.i18n.getMessage('remote_title_url_sync')}">🔗</button>
-        <button class="remote-btn remote-btn-url-unlink inactive" id="remote-url-unlink" title="${chrome.i18n.getMessage('remote_title_url_sync_unlink')}">🔒</button>
+        <button class="remote-btn remote-btn-url-sync" id="remote-url-sync" title="${chrome.i18n.getMessage('remote_title_url_sync')}">${iconHTML('urlSync')}</button>
+        <button class="remote-btn remote-btn-url-unlink inactive" id="remote-url-unlink" title="${chrome.i18n.getMessage('remote_title_url_sync_unlink')}">${iconHTML('urlLock')}</button>
       </div>
-      <button class="remote-btn remote-btn-minimize" id="remote-minimize-btn" title="${chrome.i18n.getMessage('remote_title_minimize')}" style="width: 20px;">›</button>
+      <button class="remote-btn remote-btn-minimize" id="remote-minimize-btn" title="${chrome.i18n.getMessage('remote_title_minimize')}" style="width: 20px;">${iconHTML('minimize')}</button>
       <div class="remote-library-panel hidden" id="remote-library-panel">
-        <div class="remote-library-header">${chrome.i18n.getMessage('remote_lib_title')} <button class="remote-library-close" id="remote-library-close">✕</button></div>
+        <div class="remote-library-header">${chrome.i18n.getMessage('remote_lib_title')} <button class="remote-library-close" id="remote-library-close">${iconHTML('close')}</button></div>
         <div class="remote-library-search">
           <input type="text" id="remote-library-search-input" placeholder="${chrome.i18n.getMessage('remote_search_ph')}" autocomplete="off">
         </div>
         <div class="remote-library-list" id="remote-library-list"></div>
       </div>
       <div class="remote-timeline-panel hidden" id="remote-timeline-panel">
-        <div class="remote-timeline-header">${chrome.i18n.getMessage('remote_timeline_title')} <button class="remote-timeline-close" id="remote-timeline-close">✕</button></div>
+        <div class="remote-timeline-header">
+          ${chrome.i18n.getMessage('remote_timeline_title')}
+          <div class="remote-timeline-header-btns">
+            <button class="remote-timeline-icon-btn active" id="remote-timeline-autoscroll" title="${chrome.i18n.getMessage('remote_title_timeline_autoscroll')}">${iconHTML('timelineAutoScroll')}</button>
+            <button class="remote-timeline-icon-btn" id="remote-timeline-jump" title="${chrome.i18n.getMessage('remote_title_timeline_jump')}">${iconHTML('timelineJump')}</button>
+            <button class="remote-timeline-close" id="remote-timeline-close">${iconHTML('close')}</button>
+          </div>
+        </div>
         <div class="remote-timeline-list" id="remote-timeline-list"></div>
       </div>
     `;
@@ -222,8 +273,11 @@
     const timelinePanel = remote.querySelector('#remote-timeline-panel');
     const timelineClose = remote.querySelector('#remote-timeline-close');
     const timelineList = remote.querySelector('#remote-timeline-list');
+    const btnTimelineAutoScroll = remote.querySelector('#remote-timeline-autoscroll');
+    const btnTimelineJump = remote.querySelector('#remote-timeline-jump');
 
     const btnArea = remote.querySelector('#remote-area-btn');
+    const btnClickThrough = remote.querySelector('#remote-clickthrough-btn');
 
     const btnToggle = remote.querySelector('#remote-toggle-play');
     const btnStop = remote.querySelector('#remote-stop');
@@ -248,6 +302,10 @@
         startAreaSelection();
         btnArea.blur(); // 클릭 후 포커스 해제 (하이라이트 제거)
       });
+    }
+
+    if (btnClickThrough) {
+      btnClickThrough.addEventListener('click', () => { toggleClickThrough(); btnClickThrough.blur(); });
     }
 
     btnStop.addEventListener('click', stopPlayback);
@@ -349,6 +407,22 @@
       clearPanelAutoClose();
     });
 
+    if (btnTimelineAutoScroll) {
+      btnTimelineAutoScroll.addEventListener('click', () => {
+        state._timelineAutoScroll = !state._timelineAutoScroll;
+        btnTimelineAutoScroll.classList.toggle('active', state._timelineAutoScroll);
+      });
+    }
+
+    if (btnTimelineJump) {
+      // 자동 스크롤 on/off와 무관하게, 누른 순간 딱 1번 현재 재생 위치로 스크롤 이동
+      btnTimelineJump.addEventListener('click', () => {
+        if (!state.currentEntry) return;
+        const el = timelineList.querySelector(`.remote-timeline-item[data-time="${state.currentEntry.startTime}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+
     state.overlay.remote = remote;
     state.overlay.btnToggle = btnToggle;
     state.overlay.syncVal = syncVal;
@@ -377,7 +451,6 @@
     btnMinimize.addEventListener('click', () => {
       remote.classList.toggle('minimized');
       const isMin = remote.classList.contains('minimized');
-      btnMinimize.textContent = isMin ? '‹' : '›';
       updateSiteState({ remoteMinimized: isMin });
       // 패널 열려있으면 닫기
       if (isMin) {
@@ -388,6 +461,7 @@
 
     setupDrag(container, box);
     setupRemoteDrag(remote);
+    setupClickThroughHover(box);
     
     // 리모컨 저장된 위치 복원
     chrome.storage.local.get(['remotePosition', 'remoteMinimized'], (globalData) => {
@@ -416,7 +490,6 @@
       }
       if (data.remoteMinimized) {
         remote.classList.add('minimized');
-        btnMinimize.textContent = '‹';
       }
     });
 
@@ -737,7 +810,7 @@
       for (const el of items) {
         if (parseInt(el.dataset.time, 10) === entry.startTime) {
           el.classList.add('active');
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (state._timelineAutoScroll) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
           break;
         }
       }
@@ -770,10 +843,10 @@
     if (!btn) return;
     if (!isActive) {
       btn.classList.add('inactive');
-      btn.textContent = '🔒';
+      btn.innerHTML = iconHTML('urlLock');
     } else {
       btn.classList.remove('inactive');
-      btn.textContent = state._urlSyncPaused ? '🔓' : '🔒';
+      btn.innerHTML = state._urlSyncPaused ? iconHTML('urlUnlock') : iconHTML('urlLock');
     }
   }
 
@@ -865,7 +938,7 @@
 
     if (btnEl) {
       btnEl.classList.remove('inactive');
-      btnEl.textContent = '🔓'; // 잠금 해제 상태를 아이콘으로 표시
+      btnEl.innerHTML = iconHTML('urlUnlock'); // 잠금 해제 상태를 아이콘으로 표시
       btnEl.classList.add('unlinked-flash');
       setTimeout(() => btnEl.classList.remove('unlinked-flash'), 600);
     }
@@ -907,6 +980,15 @@
         -webkit-user-select: none;
         bottom: 0;
       }
+      /* 클릭 통과 모드: pointer-events:none은 JS(applySettings)에서 인라인으로 건다.
+         마우스가 위에 있을 때만(.click-through-hover) 설정한 투명도로 흐려 보이게 한다. */
+      .lyrics-box.click-through-mode {
+        cursor: default;
+        transition: opacity 0.15s ease, background-color 0.3s ease;
+      }
+      .lyrics-box.click-through-hover {
+        opacity: var(--click-through-opacity, 0.2) !important;
+      }
 
       .lyrics-box.dragging {
         cursor: grabbing;
@@ -934,7 +1016,9 @@
       }
 
       /* 고정(핀) 토글 버튼 - 박스 모서리 안쪽에 심플하게, 호버 시 표시 */
+      /* 정상 동작하지 않아 일단 비활성화(숨김) — 로직은 그대로 두고 버튼만 숨김 */
       .lyrics-pin-btn {
+        display: none !important;
         position: absolute;
         top: 6px;
         right: 8px;
@@ -1089,6 +1173,10 @@
       .lyrics-remote.minimized .remote-drag-handle {
         padding-right: 0px;
       }
+      /* 접힌 상태에서는 화살표를 좌우로 뒤집어서 "펼치기" 방향을 나타냄(아이콘 텍스트를
+         직접 바꾸지 않고 CSS로만 처리 — 이모지/SVG 모드 둘 다에서 항상 정확히 동작) */
+      .remote-btn-minimize { transition: transform 0.15s ease; }
+      .lyrics-remote.minimized .remote-btn-minimize { transform: scaleX(-1); }
       .remote-drag-handle {
         cursor: grab;
         padding: 4px 5px;
@@ -1202,10 +1290,38 @@
         border: none;
         color: rgba(255,255,255,0.5);
         cursor: pointer;
-        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         padding: 0 4px;
       }
       .remote-library-close:hover, .remote-timeline-close:hover { color: white; }
+      .remote-timeline-header-btns {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .remote-timeline-icon-btn {
+        background: none;
+        border: none;
+        color: rgba(255,255,255,0.5);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3px;
+        border-radius: 4px;
+        opacity: 0.5;
+      }
+      .remote-timeline-icon-btn svg { display: block; }
+      .remote-timeline-icon-btn:hover { color: white; background: rgba(255,255,255,0.08); opacity: 0.9; }
+      .remote-timeline-icon-btn.active { color: var(--theme-color); opacity: 1; }
+      .remote-btn-clickthrough.active {
+        color: #0a0a0a;
+        background: var(--theme-color);
+        border-color: var(--theme-color);
+      }
+      .remote-btn-clickthrough.active:hover { background: var(--theme-color); opacity: 0.9; }
       .remote-library-search {
         padding: 6px 12px;
         border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -1489,6 +1605,36 @@
     `;
   }
 
+  // 특정 페이지에서는 사이트별로 리모컨을 켜뒀어도 리모컨을 띄우지 않는다.
+  // 예: 치지직 채팅창 팝업(/chat)은 별도 소형 창이라 리모컨이 어울리지 않음.
+  function isRemoteBlockedOnThisPage() {
+    const hostname = window.location.hostname;
+    if (hostname.includes('chzzk.naver.com') && window.location.pathname.endsWith('/chat')) {
+      return true;
+    }
+    return false;
+  }
+
+  // 리모컨 클릭 통과 버튼: 현재 설정값을 뒤집어 즉시 화면에 반영하고(storage 왕복을
+  // 기다리지 않아 클릭 즉시 눈에 보임), storage에도 써서 popup/다른 탭과 동기화한다
+  // (content.js가 settings를 직접 쓰는 유일한 지점).
+  function toggleClickThrough() {
+    const next = !(state.settings && state.settings.clickThroughEnabled);
+    const merged = { ...(state.settings || {}), clickThroughEnabled: next };
+    applySettings(merged);
+    chrome.storage.local.set({ settings: merged });
+  }
+
+  // 특정 페이지에서는 사이트별로 리모컨을 켜뒀어도 리모컨을 띄우지 않는다.
+  // 예: 치지직 채팅창 팝업(/chat)은 별도 소형 창이라 리모컨이 어울리지 않음.
+  function isRemoteBlockedOnThisPage() {
+    const hostname = window.location.hostname;
+    if (hostname.includes('chzzk.naver.com') && window.location.pathname.endsWith('/chat')) {
+      return true;
+    }
+    return false;
+  }
+
   // ============================================================
   // 설정 적용
   // ============================================================
@@ -1508,7 +1654,7 @@
     const hostname = window.location.hostname;
     let shouldShowRemote = false;
     
-    if (settings.remoteEnabledSites && settings.remoteEnabledSites[hostname] === true) {
+    if (settings.remoteEnabledSites && settings.remoteEnabledSites[hostname] === true && !isRemoteBlockedOnThisPage()) {
       shouldShowRemote = true;
     }
 
@@ -1521,6 +1667,21 @@
     }
 
     const { container, box, customStyle } = state.overlay;
+
+    // 클릭 통과 모드: 켜지면 가사창이 마우스 이벤트를 그대로 통과시켜(pointer-events: none)
+    // 뒤의 페이지가 클릭되고, 드래그도 자연히 불가능해진다(mousedown 자체가 안 잡히므로).
+    // 마우스가 가사창 위에 있는지는 document 전체 mousemove로 좌표 비교해 감지(별도 설정
+    // — setupClickThroughHover에서 최초 1회만 리스너 등록, 매 applySettings 호출마다
+    // 여기서는 상태값과 CSS 변수만 갱신).
+    const clickThroughEnabled = !!settings.clickThroughEnabled;
+    box.style.pointerEvents = clickThroughEnabled ? 'none' : '';
+    box.style.setProperty('--click-through-opacity', String((settings.clickThroughOpacity ?? 60) / 100));
+    box.classList.toggle('click-through-mode', clickThroughEnabled);
+    if (!clickThroughEnabled) box.classList.remove('click-through-hover');
+    if (state.overlay.remote) {
+      const ctBtn = state.overlay.remote.querySelector('#remote-clickthrough-btn');
+      if (ctBtn) ctBtn.classList.toggle('active', clickThroughEnabled);
+    }
 
     // 애니메이션
     container.className = container.className.replace(/animation-\w+/g, '');
@@ -1605,6 +1766,7 @@
       setVisible('.remote-btn-library',    settings.remoteBtnLibrary    !== false);
       setVisible('.remote-btn-timeline',   settings.remoteBtnTimeline   !== false);
       setVisible('.remote-btn-area',       settings.remoteBtnArea       !== false);
+      setVisible('.remote-btn-clickthrough', settings.remoteBtnClickThrough !== false);
       setVisible('.remote-btn-play',       settings.remoteBtnPlayStop   !== false);
       setVisible('.remote-btn-stop',       settings.remoteBtnPlayStop   !== false);
       setVisible('.remote-divider',        settings.remoteBtnSync       !== false);
@@ -1615,6 +1777,9 @@
       setVisible('.remote-btn-url-sync',   settings.remoteBtnUrlSync    !== false);
       setVisible('.remote-btn-url-unlink', settings.remoteBtnUrlSync    !== false);
     }
+
+    // 이모지/SVG 아이콘 설정이 바뀌었을 수 있으므로 리모컨이 열려있으면 즉시 다시 그림
+    refreshRemoteIcons();
 
     // 리모컨 가사 목록이 열려있다면 새로고침 (표시 언어 설정 반영)
     if (state.overlay.libPanel && !state.overlay.libPanel.classList.contains('hidden')) {
@@ -2050,7 +2215,7 @@
       applySettings(state.settings);
     }
 
-    if (state.overlay && state.overlay.btnToggle) state.overlay.btnToggle.textContent = '⏸';
+    if (state.overlay && state.overlay.btnToggle) state.overlay.btnToggle.innerHTML = iconHTML('pause');
 
     if (state.isPaused) {
       const pauseDuration = performance.now() - (state.startTimestamp + state.pausedAt);
@@ -2091,7 +2256,7 @@
     if (!state.isPlaying) return;
     state.isPaused = true;
     state.pausedAt = performance.now() - state.startTimestamp;
-    if (state.overlay && state.overlay.btnToggle) state.overlay.btnToggle.textContent = '▶';
+    if (state.overlay && state.overlay.btnToggle) state.overlay.btnToggle.innerHTML = iconHTML('play');
     if (state.animFrameId) {
       cancelAnimationFrame(state.animFrameId);
       state.animFrameId = null;
@@ -2122,12 +2287,12 @@
       if (state.overlay.nextContext) state.overlay.nextContext.innerHTML = '';
       state.overlay.linesContainer.classList.remove('context-gap');
       state.overlay.progressFill.style.width = '0%';
-      if (state.overlay.btnToggle) state.overlay.btnToggle.textContent = '▶';
+      if (state.overlay.btnToggle) state.overlay.btnToggle.innerHTML = iconHTML('play');
       refreshUrlSyncLockIcon(false);
 
       // 사이트별 리모컨 ON 상태면 숨기지 않음
       const hostname = window.location.hostname;
-      const siteEnabled = state.settings && state.settings.remoteEnabledSites && state.settings.remoteEnabledSites[hostname] === true;
+      const siteEnabled = state.settings && state.settings.remoteEnabledSites && state.settings.remoteEnabledSites[hostname] === true && !isRemoteBlockedOnThisPage();
       if (!siteEnabled && state.overlay.remote) {
         state.overlay.remote.classList.add('hidden');
       }
@@ -2217,6 +2382,19 @@
       }
 
       savePosition();
+    });
+  }
+
+  // 클릭 통과 모드에서는 box에 pointer-events:none이 걸려 box 자신은 마우스 이벤트를
+  // 받을 수 없다(그래서 클릭이 실제로 통과함) — 대신 document 전체에서 좌표만 비교해
+  // "마우스가 지금 가사창 영역 위에 있는지"를 판단하고, 맞으면 흐려 보이게(hover 클래스) 한다.
+  function setupClickThroughHover(box) {
+    document.addEventListener('mousemove', (e) => {
+      if (!state.settings || !state.settings.clickThroughEnabled) return;
+      const rect = box.getBoundingClientRect();
+      const inside = e.clientX >= rect.left && e.clientX <= rect.right &&
+                     e.clientY >= rect.top && e.clientY <= rect.bottom;
+      box.classList.toggle('click-through-hover', inside);
     });
   }
 
@@ -2833,7 +3011,7 @@
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.settings && changes.settings.newValue) {
       const newSettings = changes.settings.newValue;
-      const shouldShowRemote = newSettings.remoteEnabledSites && newSettings.remoteEnabledSites[currentHostname] === true;
+      const shouldShowRemote = newSettings.remoteEnabledSites && newSettings.remoteEnabledSites[currentHostname] === true && !isRemoteBlockedOnThisPage();
       // state.settings는 항상 최신으로 갱신(자동 감지 등 오버레이 없이도 도는 로직이 참조함).
       // DOM/CSS를 만지는 무거운 적용은 overlay가 있거나 리모컨을 켜야 하는 경우만 수행.
       if (state.overlay || shouldShowRemote) {

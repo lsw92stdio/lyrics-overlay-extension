@@ -605,6 +605,28 @@ kbd {
   color: var(--text-muted);
 }
 
+.timeline-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timeline-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+.timeline-icon-btn svg { display: block; }
+.timeline-icon-btn:hover { opacity: 1; background: var(--bg-tertiary); }
+.timeline-icon-btn.active { color: var(--accent); opacity: 1; }
+
 .timeline-list {
   flex: 1;
   overflow-y: auto;
@@ -974,6 +996,18 @@ kbd {
   margin-right: 12px;
   flex-shrink: 0;
 }
+
+.setting-icon-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  color: var(--text-secondary);
+  vertical-align: -3px;
+}
+.setting-icon-preview svg { display: block; }
 
 .setting-control {
   display: flex;
