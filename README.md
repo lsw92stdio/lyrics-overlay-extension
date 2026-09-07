@@ -18,17 +18,6 @@ SRT 자막 파일을 기반으로 영상/오디오 위에 싱크 가사를 오�
 [Chrome 웹스토어](https://chromewebstore.google.com/detail/lyrics-overlay/lndbfkednopjjifcgmfoeggjkpimglfo)에서
 설치하세요.
 
-<details>
-<summary>개발자 모드로 직접 설치하기</summary>
-
-1. 이 저장소를 클론하거나 ZIP으로 다운로드합니다.
-2. Chrome에서 `chrome://extensions` 접속.
-3. 우측 상단의 "개발자 모드"를 켭니다.
-4. "압축해제된 확장 프로그램을 로드" 클릭 후, 이 프로젝트 폴더(`manifest.json`이 있는
-   루트)를 선택합니다.
-
-</details>
-
 ## 사용법
 
 확장 아이콘을 클릭해 팝업을 열고 SRT 파일을 추가한 뒤, 영상/오디오 페이지에서 플로팅
